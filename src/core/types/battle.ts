@@ -1,0 +1,97 @@
+import type { StatType, BuffType } from './definitions';
+
+/**
+ * 战斗状态相关类型
+ */
+
+/**
+ * 角色实例 (运行时状态)
+ */
+export interface CharacterInstance {
+  instanceId: string; // 实例ID (唯一)
+  characterId: string; // 角色定义ID
+  
+  // 当前面板属性 (计算后)
+  currentStats: Record<StatType, number>;
+  
+  // 行动条状态
+  actionBarPosition: number; // 当前位置 (0-全场一速)
+  
+  // 状态管理
+  statuses: CharacterStatus[];
+  
+  // 生命状态
+  isDead: boolean;
+  
+  // 装备
+  equipment: string[]; // 装备实例ID数组
+  
+  // 生命值
+  maxHp: number;
+  currentHp: number;
+  
+  // 方法
+  takeDamage(damage: number): void;
+  addStatus(statusId: string, duration?: number): void;
+  removeStatus(statusId: string): void;
+}
+
+/**
+ * 角色状态实例
+ */
+export interface CharacterStatus {
+  statusId: string; // 状态定义ID
+  remainingTurns: number; // 剩余回合数
+  stackCount: number; // 叠加层数
+  type?: BuffType; // 状态类型，用于TurnManager中的getSpeedBuffs方法
+  effect?: { value: number }; // 效果值，用于TurnManager中的getSpeedBuffs方法
+}
+
+/**
+ * 战斗状态 (全局)
+ */
+export interface BattleState {
+  battleId: string;
+  round: number; // 当前回合数
+  
+  // 参战角色
+  players: CharacterInstance[];
+  enemies: CharacterInstance[];
+  
+  // 当前行动者
+  activeCharacterId: string | null;
+  
+  // 战斗资源
+  resourceManager: ResourceManager;
+  
+  // 战斗结果
+  result: "IN_PROGRESS" | "VICTORY" | "DEFEAT";
+}
+
+/**
+ * 资源管理器
+ */
+export interface ResourceManager {
+  currentResource: number; // 当前资源量
+  maxResource: number;     // 最大资源量
+  
+  advance(turns?: number): void; // 推进资源条
+  consume(amount: number): boolean; // 消耗资源
+}
+
+/**
+ * 战斗事件
+ */
+export interface BattleEvent {
+  type: string;
+  timestamp: number;
+  data: any;
+}
+
+/**
+ * 玩家动作
+ */
+export interface PlayerAction {
+  skillId: string;
+  targetId: string;
+}
