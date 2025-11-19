@@ -1,9 +1,15 @@
 import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from './definitions';
 
 /**
- * 插件类型
+ * 插件类型 (修改为 Enum)
  */
-export type PluginType = 'CHARACTER' | 'SKILL' | 'EQUIPMENT' | 'STATUS' | 'UNKNOWN';
+export enum PluginType {
+  CHARACTER = 'CHARACTER',
+  SKILL = 'SKILL',
+  EQUIPMENT = 'EQUIPMENT',
+  STATUS = 'STATUS',
+  UNKNOWN = 'UNKNOWN'
+}
 
 /**
  * 插件元数据

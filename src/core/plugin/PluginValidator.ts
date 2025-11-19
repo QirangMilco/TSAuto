@@ -1,6 +1,6 @@
 import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../types/definitions';
-import type { PluginType } from '../types/plugin';
-import { BattleEventType, BuffType, EffectType, TargetType } from '../types/definitions';
+import { PluginType } from '../types/plugin';
+import { BattleEventType, BuffType, EffectType, TargetType, StatType } from '../types/definitions';
 
 /**
  * 插件验证器
@@ -183,11 +183,13 @@ export class PluginValidator {
         if (typeof effect.damageMultiplier !== 'number' || effect.damageMultiplier < 0) {
           return false;
         }
+        if (!Object.values(StatType).includes(effect.baseDamageStat)) return false;
         break;
       case EffectType.HEAL:
-        if (typeof effect.healAmount !== 'number' || effect.healAmount < 0) {
+        if (typeof effect.healMultiplier !== 'number' || effect.healMultiplier < 0) {
           return false;
         }
+        if (!Object.values(StatType).includes(effect.baseHealStat)) return false;
         break;
       case EffectType.APPLY_STATUS:
         if (!effect.statusId || typeof effect.statusId !== 'string') {

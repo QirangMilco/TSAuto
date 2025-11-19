@@ -8,8 +8,6 @@ import { StatType } from '../types/definitions';
 export class DamageCalculator {
   // 防御减伤公式参数
   private static readonly DEF_CONSTANT = 300; // 防御常数，符合设计文档要求
-  private static readonly MIN_DAMAGE_RATIO = 0.1; // 最小伤害系数
-  private static readonly MAX_DAMAGE_RATIO = 99.0; // 最大伤害系数
   
   /**
    * 计算最终伤害
@@ -21,7 +19,8 @@ export class DamageCalculator {
   public calculateDamage(
     attacker: CharacterInstance,
     defender: CharacterInstance,
-    multiplier: number = 1.0
+    multiplier: number = 1.0,
+    baseStat: StatType = StatType.ATK
   ): {
     damage: number;
     isCritical: boolean;
@@ -30,10 +29,10 @@ export class DamageCalculator {
     defenseReduction: number;
   } {
     // 计算基础攻击力
-    const baseAttack = this.calculateBaseAttack(attacker);
+    const baseAttack = this.calculateBaseStat(attacker, baseStat);
     
     // 计算攻击增益
-    const attackBonus = this.calculateAttackBonus(attacker);
+    const attackBonus = this.calculateStatBonus(attacker, baseStat);
     
     // 计算有效攻击
     const effectiveAttack = baseAttack * (1 + attackBonus);
@@ -70,23 +69,9 @@ export class DamageCalculator {
       defenseReduction: 1 - defParam // 减伤比例 = 1 - 承受伤害比例
     };
   }
+
   
-  /**
-   * 计算基础攻击力
-   */
-  public calculateBaseAttack(attacker: CharacterInstance): number {
-    return attacker.currentStats.ATK || 0;
-  }
   
-  /**
-   * 计算攻击增益
-   */
-  public calculateAttackBonus(attacker: CharacterInstance): number {
-    const atkFlat = attacker.currentStats.ATK || 0;
-    const atkPercent = attacker.currentStats.ATK_P || 0;
-    
-    return atkPercent / 100; // 转换为小数
-  }
   
   /**
    * 检查是否暴击
@@ -109,39 +94,124 @@ export class DamageCalculator {
     let defense = defender.currentStats.DEF || 0;
     
     // 应用无视防御效果
-    const ignoreDefPercent = attacker.currentStats.IGNORE_DEF_P || 0;
-    const ignoreDefFlat = attacker.currentStats.IGNORE_DEF_FLAT || 0;
+    const ignoreDefPercent = attacker.currentStats.IGNORE_DEF_P || 0; // 百分比值
+    const ignoreDefFlat = attacker.currentStats.IGNORE_DEF_FLAT || 0; // 固定值
     
-    // 计算有效防御
-    const effectiveDefense = Math.max(0, defense * (1 - ignoreDefPercent / 100) - ignoreDefFlat);
+    // 获取防御增减效果（如果存在）
+    const defenseModifier = defender.currentStats.DEF_P || 0; // 防御增减百分比
     
-    return effectiveDefense;
+    // 按照公式计算：(1 - 无视防御) × (敌方防御 - 忽略防御) × (1 + 防御增减)
+    // 注意：这里假设ignoreDefPercent是百分比值，需要转换为小数
+    // 先计算 (敌方防御 - 忽略防御)
+    const defenseAfterFlatReduction = Math.max(0, defense - ignoreDefFlat);
+    
+    // 应用 (1 - 无视防御) - 无视防御为百分比，转换为小数
+    const defenseAfterPercentReduction = defenseAfterFlatReduction * (1 - ignoreDefPercent / 100);
+    
+    // 应用 (1 + 防御增减) - 防御增减为百分比，转换为小数
+    const effectiveDefense = defenseAfterPercentReduction * (1 + defenseModifier / 100);
+    
+    return Math.max(0, effectiveDefense);
   }
   
   /**
    * 限制伤害值在合理范围内
    */
   private clampDamage(damage: number, maxPossibleDamage: number): number {
-    const minDamage = maxPossibleDamage * DamageCalculator.MIN_DAMAGE_RATIO;
-    const maxDamage = maxPossibleDamage * DamageCalculator.MAX_DAMAGE_RATIO;
+    const minDamage = 1;
+    const maxDamage = maxPossibleDamage;
     
     return Math.max(minDamage, Math.min(maxDamage, damage));
   }
   
   /**
    * 计算治疗量
+   * @param healer 治疗者
+   * @param target 被治疗者
+   * @param multiplier 治疗系数
+   * @param baseStat 基础属性类型，默认为生命
+   * @returns 最终治疗值和是否暴击的信息
    */
-  public calculateHeal(target: CharacterInstance, healAmount: number): number {
-    // 计算生命加成
-    const hpPercentBonus = target.currentStats.HP_P || 0;
-    const baseHeal = healAmount;
+  public calculateHeal(
+    healer: CharacterInstance,
+    target: CharacterInstance,
+    multiplier: number = 1.0,
+    baseStat: StatType = StatType.HP
+  ): {
+    healAmount: number;
+    isCritical: boolean;
+    rawHeal: number;
+    criticalHeal: number;
+  } {
+    // 计算基础生命值
+    const baseHp = this.calculateBaseStat(healer, baseStat);
     
-    // 应用生命加成
-    const finalHeal = baseHeal * (1 + hpPercentBonus / 100);
+    // 计算生命增益
+    const hpBonus = this.calculateStatBonus(healer, baseStat);
     
-    // 确保治疗不超过最大生命值
+    // 计算有效基础值
+    const effectiveBase = baseHp * (1 + hpBonus);
+    
+    // 计算基础治疗量
+    let rawHeal = effectiveBase * multiplier;
+    
+    // 检查治疗暴击
+    const isCritical = this.checkCritical(healer);
+    let criticalHeal = 0;
+    
+    // 应用暴击伤害
+    if (isCritical) {
+      const critMultiplier = 1 + (healer.currentStats.CRIT_DMG || 0);
+      rawHeal *= critMultiplier;
+      criticalHeal = rawHeal;
+    }
+    
+    // 计算治疗增减
+    const healBonus = healer.currentStats.HEAL_BONUS || 0; // 治疗者的治疗增减
+    const receiveHealBonus = target.currentStats.RECEIVE_HEAL_BONUS || 0; // 被治疗者的承受治疗增减
+    
+    // 应用治疗增减效果：(1 + 治疗增减 + 承受治疗增减)
+    let finalHeal = rawHeal * (1 + healBonus / 100 + receiveHealBonus / 100);
+    
+    // 确保治疗不超过最大可能治疗量
     const maxPossibleHeal = target.maxHp - target.currentHp;
+    finalHeal = Math.min(finalHeal, maxPossibleHeal);
     
-    return Math.min(finalHeal, maxPossibleHeal);
+    return {
+      healAmount: Math.round(finalHeal),
+      isCritical,
+      rawHeal,
+      criticalHeal
+    };
+  }
+  
+  /**
+   * 计算基础属性值
+   */
+  public calculateBaseStat(character: CharacterInstance, statType: StatType): number {
+    return character.currentStats[statType] || 0;
+  }
+  
+  /**
+   * 计算属性增益
+   */
+  public calculateStatBonus(character: CharacterInstance, statType: StatType): number {
+    // 根据不同属性类型获取对应的百分比加成
+    let statPercent = 0;
+    
+    switch (statType) {
+      case StatType.ATK:
+        statPercent = character.currentStats.ATK_P || 0;
+        break;
+      case StatType.DEF:
+        statPercent = character.currentStats.DEF_P || 0;
+        break;
+      case StatType.HP:
+        statPercent = character.currentStats.HP_P || 0;
+        break;
+      // 可以根据需要添加更多属性类型
+    }
+    
+    return statPercent / 100; // 转换为小数
   }
 }

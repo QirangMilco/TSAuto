@@ -1,7 +1,7 @@
 /**
  * 风语之刃 - 装备插件
  */
-import { StatType } from '../../core/types/definitions';
+import { StatType } from '../../src/core/types/definitions';
 
 export default {
   id: "EQUIP_2001",

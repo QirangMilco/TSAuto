@@ -1,4 +1,4 @@
-import { BattleEventType, EffectType, TurnType } from '../types/definitions';
+import { BattleEventType, EffectType, TurnType, StatType } from '../types/definitions';
 import type { CharacterInstance, BattleState, BattleEvent, PlayerAction } from '../types/battle';
 import type { GameDataInterface } from '../types/plugin';
 import type { SkillDefinition, Effect, StatusDefinition } from '../types/definitions';
@@ -174,12 +174,12 @@ export class BattleEngine {
     
     switch (effect.type) {
       case EffectType.DAMAGE:
-        this.applyDamage(caster, target, effect.damageMultiplier || 1.0);
+        this.applyDamage(caster, target, effect.damageMultiplier || 1.0, effect.baseDamageStat);
         break;
         
       case EffectType.HEAL:
-        this.applyHeal(target, effect.healAmount || 0);
-        break;
+          this.applyHeal(caster, target, effect.healMultiplier || 1.0, effect.baseHealStat);
+          break;
         
       case EffectType.APPLY_STATUS:
         if (effect.statusId) {
@@ -204,8 +204,8 @@ export class BattleEngine {
   /**
    * 应用伤害
    */
-  private applyDamage(attacker: CharacterInstance, defender: CharacterInstance, multiplier: number): void {
-    const damageResult = this.damageCalculator.calculateDamage(attacker, defender, multiplier);
+  private applyDamage(attacker: CharacterInstance, defender: CharacterInstance, multiplier: number, baseStat?: StatType): void {
+    const damageResult = this.damageCalculator.calculateDamage(attacker, defender, multiplier, baseStat);
     
     // 应用伤害
     defender.takeDamage(damageResult.damage);
@@ -229,14 +229,16 @@ export class BattleEngine {
   /**
    * 应用治疗
    */
-  private applyHeal(target: CharacterInstance, amount: number): void {
-    const healAmount = this.damageCalculator.calculateHeal(target, amount);
-    target.currentHp = Math.min(target.maxHp, target.currentHp + healAmount);
+  private applyHeal(caster: CharacterInstance, target: CharacterInstance, multiplier: number = 1.0, baseStat?: StatType): void {
+    const healResult = this.damageCalculator.calculateHeal(caster, target, multiplier, baseStat);
+    target.currentHp = Math.min(target.maxHp, target.currentHp + healResult.healAmount);
     
     // 触发治疗事件
     this.triggerEvent(BattleEventType.ON_HEAL_RECEIVED, {
+      casterId: caster.instanceId,
       targetId: target.instanceId,
-      amount: healAmount
+      amount: healResult.healAmount,
+      isCritical: healResult.isCritical
     });
   }
   

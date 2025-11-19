@@ -62,7 +62,9 @@ export enum StatType {
   DMG_BONUS = "DMG_BONUS",         // 伤害加成
   DMG_TAKEN_BONUS = "DMG_TAKEN_BONUS", // 承受伤害加成
   IGNORE_DEF_P = "IGNORE_DEF_P",   // 无视防御(%)
-  IGNORE_DEF_FLAT = "IGNORE_DEF_FLAT" // 忽略防御(固定值)
+  IGNORE_DEF_FLAT = "IGNORE_DEF_FLAT", // 忽略防御(固定值)
+  HEAL_BONUS = "HEAL_BONUS",       // 治疗加成
+  RECEIVE_HEAL_BONUS = "RECEIVE_HEAL_BONUS" // 承受治疗加成
 }
 
 export enum BuffType {
@@ -93,9 +95,11 @@ export interface Effect {
   
   // DAMAGE 专用
   damageMultiplier?: number; // 伤害系数，如 1.2 = 120%攻击
+  baseDamageStat?: StatType; // 基础伤害属性类型（用于伤害计算）
   
   // HEAL 专用
-  healAmount?: number; // 治疗量
+  healMultiplier?: number; // 治疗系数
+  baseHealStat?: StatType; // 基础治疗属性类型（用于治疗计算）
   
   // APPLY_STATUS 专用
   statusId?: string; // 要施加的状态ID
@@ -114,15 +118,31 @@ export interface CharacterDefinition {
     portrait: string; // 立绘图片路径
   };
   
-  // 成长值系统 (基础数据)
-  growthValues: {
+  // 觉醒前
+  growthValueBeforeAwake: {
     hp: number;     // 生命成长值
-    atk: number;    // 攻击成长值  
+    atk: number;    // 攻击成长值
     def: number;    // 防御成长值
-    spd: number;    // 速度 (通常固定)
-    crit: number;   // 暴击率成长
-    critDmg: number; // 暴击伤害成长
-  };
+  }
+
+  baseValueBeforeAwake: {
+    spd: number;    // 速度
+    crit: number;   // 暴击率
+    critDmg: number; // 暴击伤害
+  }
+
+  // 觉醒后
+  growthValueAfterAwake: {
+    hp: number;     // 生命成长值
+    atk: number;    // 攻击成长值
+    def: number;    // 防御成长值
+  }
+
+  baseValueAfterAwake: {
+    spd: number;    // 速度
+    crit: number;   // 暴击率
+    critDmg: number; // 暴击伤害
+  }
   
   skills: [string, string, string]; // 技能ID数组
 }

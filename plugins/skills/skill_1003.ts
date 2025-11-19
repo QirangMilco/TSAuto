@@ -1,7 +1,7 @@
 /**
  * 风卷残云 - 终极技能插件
  */
-import { EffectType, TargetType } from '../../core/types/definitions';
+import { EffectType, TargetType } from '../../src/core/types/definitions';
 
 export default {
   id: "SKILL_1003",

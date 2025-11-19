@@ -1,7 +1,7 @@
 /**
  * 风盾 - 状态插件
  */
-import { BuffType, StatType, EffectType, TargetType } from '../../core/types/definitions';
+import { BuffType, StatType, EffectType, TargetType } from '../../src/core/types/definitions';
 
 export default {
   id: "STATUS_1001",

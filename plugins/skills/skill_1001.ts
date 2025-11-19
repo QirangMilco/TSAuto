@@ -1,7 +1,7 @@
 /**
  * 风切 - 普通攻击技能插件
  */
-import { EffectType, TargetType, BattleEventType } from '../../core/types/definitions';
+import { EffectType, TargetType, BattleEventType } from '../../src/core/types/definitions';
 
 export default {
   id: "SKILL_1001",

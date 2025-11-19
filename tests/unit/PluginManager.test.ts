@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginManager } from '../../src/core/plugin/PluginManager';
-import { PluginType, StatType } from '../../src/core/types/definitions';
+import { StatType, BattleEventType } from '../../src/core/types/definitions';
+import { PluginType } from '../../src/core/types/plugin';
 import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../../src/core/types/definitions';
 import type { PluginMetadata } from '../../src/core/types/plugin';
 
@@ -15,22 +16,34 @@ describe('PluginManager', () => {
     const characterDef: CharacterDefinition = {
       id: 'char1',
       name: 'Test Character',
-      resourcePath: '/characters/char1',
-      growth: {
-        [StatType.ATK]: 10,
-        [StatType.DEF]: 5,
-        [StatType.HP]: 100,
-        [StatType.SPD]: 2
+      assets: {
+        avatar: 'avatar.png',
+        portrait: 'portrait.png'
       },
-      skillIds: ['skill1', 'skill2']
+      growthValueBeforeAwake: {
+        hp: 10,
+        atk: 5,
+        def: 2
+      },
+      baseValueBeforeAwake: {
+        spd: 100,
+        crit: 0.1,
+        critDmg: 1.5
+      },
+      growthValueAfterAwake: {
+        hp: 12,
+        atk: 8,
+        def: 4
+      },
+      baseValueAfterAwake: {
+        spd: 120,
+        crit: 0.15,
+        critDmg: 1.5
+      },
+      skills: ['skill1', 'skill2', 'skill3']
     };
     
-    const plugin: PluginMetadata = {
-      type: PluginType.CHARACTER,
-      definition: characterDef
-    };
-    
-    pluginManager.registerPlugin(plugin);
+    pluginManager.registerPlugin(characterDef.id, PluginType.CHARACTER, characterDef);
     
     const result = pluginManager.getCharacter('char1');
     expect(result).toEqual(characterDef);
@@ -40,13 +53,22 @@ describe('PluginManager', () => {
     const skillDef: SkillDefinition = {
       id: 'skill1',
       name: 'Test Skill',
-      cost: 25,
-      effects: [],
-      passive: null,
+      cost: {
+        type: "BATTLE_RESOURCE",
+        amount: 25
+      },
+      activeEffects: [],
+      passiveListeners: [
+        {
+          event: BattleEventType.ON_SKILL_USED,
+          effects: []
+        }
+      ],
       description: 'Test skill description'
     };
     
     const plugin: PluginMetadata = {
+      id: skillDef.id,
       type: PluginType.SKILL,
       definition: skillDef
     };

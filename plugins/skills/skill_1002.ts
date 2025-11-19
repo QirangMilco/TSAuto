@@ -1,7 +1,7 @@
 /**
  * 风之屏障 - 防御技能插件
  */
-import { EffectType, TargetType, BattleEventType } from '../../core/types/definitions';
+import { EffectType, TargetType, BattleEventType, StatType } from '../../src/core/types/definitions';
 
 export default {
   id: "SKILL_1002",
@@ -22,13 +22,14 @@ export default {
     {
       type: EffectType.HEAL,
       target: TargetType.SELF,
-      healAmount: 200 // 基础治疗200点
+      healMultiplier: 1.0, // 基础治疗系数
+      baseHealStat: StatType.HP // 基础治疗属性类型（用于治疗计算）
     }
   ],
   
   passiveListeners: [
     {
-      event: BattleEventType.ON_RECEIVE_DAMAGE,
+      event: BattleEventType.ON_DAMAGE_DEALT,
       effects: [
         {
           type: EffectType.MODIFY_RESOURCE,
