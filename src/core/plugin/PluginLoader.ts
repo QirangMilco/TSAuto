@@ -10,39 +10,36 @@ interface PluginLoadResult {
 /**
  * 插件加载器
  * 负责动态加载各类插件模块
+ * 使用Vite的import.meta.glob实现真实的插件加载
  */
 export class PluginLoader {
-  private readonly PLUGIN_DIRS: Record<PluginType, string> = {
-    [PluginType.CHARACTER]: '/plugins/characters',
-    [PluginType.SKILL]: '/plugins/skills',
-    [PluginType.EQUIPMENT]: '/plugins/equipment',
-    [PluginType.STATUS]: '/plugins/statuses',
-    [PluginType.UNKNOWN]: '/plugins'
-  };
   
   /**
    * 按类型加载所有插件
+   * 使用Vite的import.meta.glob实现真实的插件加载
    */
   public async loadPluginsByType(type: PluginType): Promise<PluginLoadResult[]> {
-    const pluginDir = this.PLUGIN_DIRS[type];
     const results: PluginLoadResult[] = [];
     
     try {
-      // 这里使用动态导入来加载插件
-      // 在浏览器环境中，我们需要使用不同的策略
-      // 这里提供一个基础实现，实际使用时可能需要调整
+      // 根据类型确定路径模式
+      const pathPattern = this.getTypePathPattern(type);
       
-      // 假设我们有一个插件清单文件
-      const pluginFiles = await this.getPluginFiles(pluginDir);
+      // 使用Vite的import.meta.glob加载所有匹配的插件文件
+      const modules = import.meta.glob('/plugins/**/*.ts', { eager: true });
       
-      for (const file of pluginFiles) {
-        try {
-          const result = await this.loadPluginFromFile(file, type);
-          if (result) {
-            results.push(result);
+      // 遍历所有模块
+      for (const [path, module] of Object.entries(modules)) {
+        // 根据路径过滤特定类型的插件
+        if (this.matchesPluginType(path, type)) {
+          try {
+            const result = await this.processPluginModule(path, module, type);
+            if (result) {
+              results.push(result);
+            }
+          } catch (error) {
+            console.error(`Failed to process plugin: ${path}`, error);
           }
-        } catch (error) {
-          console.error(`Failed to load plugin: ${file}`, error);
         }
       }
     } catch (error) {
@@ -60,8 +57,14 @@ export class PluginLoader {
       // 确定插件类型
       const type = this.determinePluginType(path);
       
-      // 加载插件文件
-      return await this.loadPluginFromFile(path, type);
+      // 使用Vite的import.meta.glob加载单个插件
+      try {
+        const module = await import(`/plugins/${path}`);
+        return await this.processPluginModule(path, module, type);
+      } catch (importError) {
+        console.error(`Failed to import plugin: /plugins/${path}`, importError);
+        return null;
+      }
     } catch (error) {
       console.error(`Failed to load plugin: ${path}`, error);
       return null;
@@ -69,61 +72,95 @@ export class PluginLoader {
   }
   
   /**
-   * 从文件加载插件
+   * 处理插件模块
    */
-  private async loadPluginFromFile(filePath: string, type: PluginType): Promise<PluginLoadResult | null> {
+  private async processPluginModule(
+    path: string,
+    module: any,
+    type: PluginType
+  ): Promise<PluginLoadResult | null> {
     try {
-      // 在Node.js环境中
-      // const module = await import(filePath);
-      // const content = module.default || module;
+      // 获取插件内容（默认导出或模块本身）
+      const content = module.default || module;
       
-      // 在浏览器环境中，我们使用不同的策略
-      // 这里提供一个模拟实现
-      
-      // 模拟从文件加载插件内容
-      const content = await this.simulatePluginLoad(filePath);
-      
-      if (!content || !content.id) {
+      // 验证插件内容
+      if (!content || typeof content !== 'object') {
+        console.warn(`Invalid plugin content at ${path}`);
         return null;
       }
       
+      // 确保插件有ID
+      const id = content.id || this.extractIdFromPath(path);
+      
+      // 获取元数据
+      const metadataModule = module as { metadata?: PluginMetadata };
+      const moduleMetadata = metadataModule.metadata || {};
+      
       const metadata: PluginMetadata = {
-        id: content.id,
+        id,
         type,
-        path: filePath,
-        version: content.version || '1.0.0',
-        author: content.author || 'Unknown',
+        path,
+        version: moduleMetadata.version || '1.0.0',
+        author: moduleMetadata.author || 'Unknown',
+        description: moduleMetadata.description || '',
         loadTime: Date.now()
       };
       
       return {
-        id: content.id,
+        id,
         type,
         content,
         metadata
       };
     } catch (error) {
-      console.error(`Error loading plugin from file: ${filePath}`, error);
+      console.error(`Error processing plugin module: ${path}`, error);
       return null;
     }
   }
   
   /**
-   * 模拟插件加载（用于浏览器环境）
+   * 根据类型获取路径模式
    */
-  private async simulatePluginLoad(filePath: string): Promise<any> {
-    // 在实际应用中，这里应该是真实的加载逻辑
-    // 现在返回一个模拟的空对象
-    return { id: filePath.split('/').pop()?.replace('.js', '') };
+  private getTypePathPattern(type: PluginType): string {
+    switch (type) {
+      case PluginType.CHARACTER:
+        return '/plugins/characters/*.ts';
+      case PluginType.SKILL:
+        return '/plugins/skills/*.ts';
+      case PluginType.EQUIPMENT:
+        return '/plugins/equipment/*.ts';
+      case PluginType.STATUS:
+        return '/plugins/statuses/*.ts';
+      default:
+        return '/plugins/**/*.ts';
+    }
   }
   
   /**
-   * 获取插件文件列表
+   * 检查路径是否匹配指定的插件类型
    */
-  private async getPluginFiles(dir: string): Promise<string[]> {
-    // 模拟获取文件列表
-    // 实际应用中需要根据环境实现
-    return [];
+  private matchesPluginType(path: string, type: PluginType): boolean {
+    switch (type) {
+      case PluginType.CHARACTER:
+        return path.includes('/characters/') || path.includes('character_');
+      case PluginType.SKILL:
+        return path.includes('/skills/') || path.includes('skill_');
+      case PluginType.EQUIPMENT:
+        return path.includes('/equipment/') || path.includes('equip_');
+      case PluginType.STATUS:
+        return path.includes('/statuses/') || path.includes('status_');
+      default:
+        return true;
+    }
+  }
+  
+  /**
+   * 从路径中提取插件ID
+   */
+  private extractIdFromPath(path: string): string {
+    // 从路径中提取文件名（不含扩展名）作为ID
+    const fileName = path.split('/').pop() || 'unknown';
+    return fileName.replace(/\.ts$/, '');
   }
   
   /**
@@ -140,5 +177,27 @@ export class PluginLoader {
       return PluginType.STATUS;
     }
     return PluginType.UNKNOWN;
+  }
+  
+  /**
+   * 加载所有插件类型
+   */
+  public async loadAllPlugins(): Promise<Record<PluginType, PluginLoadResult[]>> {
+    const results: Record<PluginType, PluginLoadResult[]> = {
+      [PluginType.CHARACTER]: [],
+      [PluginType.SKILL]: [],
+      [PluginType.EQUIPMENT]: [],
+      [PluginType.STATUS]: [],
+      [PluginType.UNKNOWN]: []
+    };
+    
+    // 加载每种类型的插件
+    for (const type of Object.values(PluginType)) {
+      if (type !== PluginType.UNKNOWN) {
+        results[type] = await this.loadPluginsByType(type);
+      }
+    }
+    
+    return results;
   }
 }

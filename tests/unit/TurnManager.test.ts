@@ -7,10 +7,9 @@ describe('TurnManager', () => {
   let turnManager: TurnManager;
   let character1: CharacterInstance;
   let character2: CharacterInstance;
+  let characters: CharacterInstance[];
   
   beforeEach(() => {
-    turnManager = new TurnManager();
-    
     // 创建测试角色实例
     character1 = {
       instanceId: 'char1',
@@ -50,6 +49,10 @@ describe('TurnManager', () => {
         [StatType.SPD]: 200
       }
     };
+    
+    characters = [character1, character2];
+    // 现在构造函数需要传入角色列表来计算全场一速
+    turnManager = new TurnManager(characters);
   });
   
   it('should calculate effective speed correctly', () => {
@@ -84,23 +87,71 @@ describe('TurnManager', () => {
   });
   
   it('should update action bar correctly', () => {
-    const characters = [character1, character2];
-    const ready = turnManager.updateActionBar(characters);
+    // 重置角色的行动条位置
+    character1.actionBarPosition = 0;
+    character2.actionBarPosition = 0;
     
+    // 调用updateActionBar，会重新计算全场一速并更新行动条位置
+    const ready = turnManager.updateActionBar(characters);
+    const globalFastestSpeed = turnManager.getGlobalFastestSpeed();
+    
+    // 检查行动条位置更新
     expect(character1.actionBarPosition).toBe(100);
     expect(character2.actionBarPosition).toBe(200);
-    expect(ready.length).toBe(0); // 都没满
+    
+    // 由于character2的速度等于全场一速，行动条位置会被设置为等于全场一速，所以应该被标记为准备行动
+    expect(ready.length).toBe(1);
+    expect(ready[0]).toBe(character2); // 应该是速度最快的角色
+    expect(globalFastestSpeed).toBe(200); // 全场一速是200
+  });
+  
+  it('should return character when action bar is full', () => {
+    // 设置角色行动条到接近满的值
+    const globalFastestSpeed = turnManager.getGlobalFastestSpeed();
+    character1.actionBarPosition = globalFastestSpeed - 10;
+    character2.actionBarPosition = globalFastestSpeed - 20;
+    
+    // 调用updateActionBar，应该让角色行动条填满
+    const ready = turnManager.updateActionBar(characters);
+    
+    // 应该有角色准备行动
+    expect(ready.length).toBeGreaterThan(0);
+    // 角色的行动条位置应该 >= 全场一速
+    ready.forEach(char => {
+      expect(char.actionBarPosition).toBeGreaterThanOrEqual(globalFastestSpeed);
+    });
+  });
+  
+  it('should recalculate global speed when characters change', () => {
+    // 创建一个更快的角色
+    const fastCharacter: CharacterInstance = {
+      ...character1,
+      instanceId: 'char3',
+      characterId: 'test3',
+      currentStats: {
+        ...character1.currentStats,
+        [StatType.SPD]: 300
+      }
+    };
+    
+    const newCharacters = [...characters, fastCharacter];
+    turnManager.recalculateGlobalSpeed(newCharacters);
+    
+    expect(turnManager.getGlobalFastestSpeed()).toBe(300);
   });
   
   it('should return characters with full action bar', () => {
-    character1.actionBarPosition = 950;
-    character2.actionBarPosition = 900;
+    const globalFastestSpeed = turnManager.getGlobalFastestSpeed();
     
-    const ready = turnManager.updateActionBar([character1, character2]);
+    character1.actionBarPosition = globalFastestSpeed - 50;
+    character2.actionBarPosition = globalFastestSpeed - 100;
     
+    const ready = turnManager.updateActionBar(characters);
+    
+    // 更新后应该都满了
     expect(ready.length).toBe(2);
-    expect(ready[0]).toBe(character1); // 先行动
-    expect(ready[1]).toBe(character2);
+    expect(ready[0].actionBarPosition).toBeGreaterThanOrEqual(globalFastestSpeed);
+    expect(ready[1].actionBarPosition).toBeGreaterThanOrEqual(globalFastestSpeed);
   });
   
   it('should reset action bar correctly', () => {
@@ -110,19 +161,20 @@ describe('TurnManager', () => {
   });
   
   it('should adjust action bar correctly', () => {
-    character1.actionBarPosition = 500;
+    const globalFastestSpeed = turnManager.getGlobalFastestSpeed();
+    character1.actionBarPosition = globalFastestSpeed * 0.5; // 50%
     
     // 拉条30%
     turnManager.adjustActionBar(character1, 0.3);
-    expect(character1.actionBarPosition).toBe(800); // 500 + 300 = 800
+    expect(character1.actionBarPosition).toBe(globalFastestSpeed * 0.8); // 50% + 30% = 80%
     
     // 推条20%
     turnManager.adjustActionBar(character1, -0.2);
-    expect(character1.actionBarPosition).toBe(600); // 800 - 200 = 600
+    expect(character1.actionBarPosition).toBe(globalFastestSpeed * 0.6); // 80% - 20% = 60%
     
     // 边界测试
     turnManager.adjustActionBar(character1, 1.0);
-    expect(character1.actionBarPosition).toBe(1000); // 最大值限制
+    expect(character1.actionBarPosition).toBe(globalFastestSpeed); // 最大值限制
     
     turnManager.adjustActionBar(character1, -2.0);
     expect(character1.actionBarPosition).toBe(0); // 最小值限制

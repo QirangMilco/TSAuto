@@ -7,7 +7,7 @@ import { StatType } from '../types/definitions';
  */
 export class DamageCalculator {
   // 防御减伤公式参数
-  private static readonly DEF_REDUCTION_FACTOR = 0.01;
+  private static readonly DEF_CONSTANT = 300; // 防御常数，符合设计文档要求
   private static readonly MIN_DAMAGE_RATIO = 0.1; // 最小伤害系数
   private static readonly MAX_DAMAGE_RATIO = 99.0; // 最大伤害系数
   
@@ -53,10 +53,11 @@ export class DamageCalculator {
     }
     
     // 计算防御减伤
-    const defenseReduction = this.calculateDefenseReduction(attacker, defender);
+    const effectiveDefense = this.calculateEffectiveDefense(attacker, defender);
     
-    // 应用防御减伤
-    let finalDamage = rawDamage * (1 - defenseReduction);
+    // 应用防御减伤：300/(300+防御值)
+    const defParam = DamageCalculator.DEF_CONSTANT / (DamageCalculator.DEF_CONSTANT + effectiveDefense);
+    let finalDamage = rawDamage * defParam;
     
     // 确保伤害在合理范围内
     finalDamage = this.clampDamage(finalDamage, defender.maxHp);
@@ -66,7 +67,7 @@ export class DamageCalculator {
       isCritical,
       rawDamage,
       criticalDamage,
-      defenseReduction
+      defenseReduction: 1 - defParam // 减伤比例 = 1 - 承受伤害比例
     };
   }
   
@@ -96,9 +97,12 @@ export class DamageCalculator {
   }
   
   /**
-   * 计算防御减伤
+   * 计算有效防御
+   * @param attacker 攻击者
+   * @param defender 防御者
+   * @returns 有效防御值
    */
-  public calculateDefenseReduction(
+  public calculateEffectiveDefense(
     attacker: CharacterInstance,
     defender: CharacterInstance
   ): number {
@@ -111,11 +115,7 @@ export class DamageCalculator {
     // 计算有效防御
     const effectiveDefense = Math.max(0, defense * (1 - ignoreDefPercent / 100) - ignoreDefFlat);
     
-    // 计算减伤比例
-    const reduction = effectiveDefense * DamageCalculator.DEF_REDUCTION_FACTOR / 
-                     (1 + effectiveDefense * DamageCalculator.DEF_REDUCTION_FACTOR);
-    
-    return reduction;
+    return effectiveDefense;
   }
   
   /**

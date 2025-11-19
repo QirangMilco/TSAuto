@@ -1,5 +1,5 @@
-import { PluginType } from '../types/plugin';
 import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../types/definitions';
+import type { PluginType } from '../types/plugin';
 import { BattleEventType, BuffType, EffectType, TargetType } from '../types/definitions';
 
 /**

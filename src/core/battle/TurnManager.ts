@@ -6,9 +6,35 @@ import { BuffType } from '../types/definitions';
  * 负责处理角色行动顺序、速度计算和行动条进度
  */
 export class TurnManager {
-  private static readonly MAX_ACTION_BAR = 1000; // 行动条满值
   private static readonly MIN_SPEED = 10;        // 最小速度
   private static readonly MAX_SPEED = 1000;      // 最大速度
+  private globalFastestSpeed: number = 100;     // 全场一速，默认为100
+  
+  /**
+   * 构造函数
+   * @param characters 所有角色实例，用于计算全场一速
+   */
+  constructor(characters: CharacterInstance[] = []) {
+    if (characters.length > 0) {
+      this.recalculateGlobalSpeed(characters);
+    }
+  }
+  
+  /**
+   * 重新计算全场一速
+   * @param characters 所有角色实例
+   */
+  public recalculateGlobalSpeed(characters: CharacterInstance[]): void {
+    // 获取所有存活单位的当前速度的最大值
+    const aliveCharacters = characters.filter(c => !c.isDead);
+    if (aliveCharacters.length > 0) {
+      this.globalFastestSpeed = Math.max(
+        ...aliveCharacters.map(c => this.calculateEffectiveSpeed(c))
+      );
+    } else {
+      this.globalFastestSpeed = 100; // 默认值
+    }
+  }
   
   /**
    * 计算所有角色的行动条增量并更新位置
@@ -17,6 +43,9 @@ export class TurnManager {
    */
   public updateActionBar(characters: CharacterInstance[]): CharacterInstance[] {
     const readyCharacters: CharacterInstance[] = [];
+    
+    // 先更新全场一速
+    this.recalculateGlobalSpeed(characters);
     
     for (const character of characters) {
       if (character.isDead) continue;
@@ -28,7 +57,7 @@ export class TurnManager {
       character.actionBarPosition += effectiveSpeed;
       
       // 检查是否准备行动
-      if (character.actionBarPosition >= TurnManager.MAX_ACTION_BAR) {
+      if (character.actionBarPosition >= this.globalFastestSpeed) {
         readyCharacters.push(character);
       }
     }
@@ -87,17 +116,27 @@ export class TurnManager {
   
   /**
    * 调整角色行动条位置
+   * @param character 角色实例
+   * @param percent 百分比值（正值为拉条，负值为推条）
    */
-  public adjustActionBar(character: CharacterInstance, amount: number): void {
+  public adjustActionBar(character: CharacterInstance, percent: number): void {
+    const amount = this.globalFastestSpeed * percent;
     character.actionBarPosition = Math.max(0, 
-      Math.min(TurnManager.MAX_ACTION_BAR, 
-        character.actionBarPosition + (amount * TurnManager.MAX_ACTION_BAR)));
+      Math.min(this.globalFastestSpeed, 
+        character.actionBarPosition + amount));
   }
   
   /**
-   * 获取行动条满值常量
+   * 获取当前全场一速值
    */
-  public static getMaxActionBar(): number {
-    return TurnManager.MAX_ACTION_BAR;
+  public getGlobalFastestSpeed(): number {
+    return this.globalFastestSpeed;
+  }
+  
+  /**
+   * 获取当前行动条满值（即全场一速）
+   */
+  public getCurrentMaxActionBar(): number {
+    return this.globalFastestSpeed;
   }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginValidator } from '../../src/core/plugin/PluginValidator';
 import { PluginType, StatType, BuffType, BattleEventType, EffectType } from '../../src/core/types/definitions';
 import type { PluginMetadata } from '../../src/core/types/plugin';
