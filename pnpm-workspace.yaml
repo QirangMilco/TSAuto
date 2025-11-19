@@ -1,0 +1,6 @@
+packages:
+  # 根目录的package.json
+  - '.'
+  # 可能的子包
+  - 'plugins/*'
+  - 'src/plugins/*'
