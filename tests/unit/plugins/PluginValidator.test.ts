@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { PluginValidator } from '../../src/core/plugin/PluginValidator';
-import { StatType, BuffType, BattleEventType, EffectType, ResourceType } from '../../src/core/types/definitions';
-import { PluginType } from '../../src/core/types/plugin';
-import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../../src/core/types/definitions';
+import { PluginValidator } from '../../../src/core/plugin/PluginValidator';
+import { StatType, BuffType, BattleEventType, EffectType, ResourceType } from '../../../src/core/types/definitions';
+import { PluginType } from '../../../src/core/types/plugin';
+import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../../../src/core/types/definitions';
 
 describe('PluginValidator', () => {
   let validator: PluginValidator;

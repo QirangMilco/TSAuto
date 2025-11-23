@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { PluginManager } from '../../src/core/plugin/PluginManager';
-import { StatType, BattleEventType, BuffType, ResourceType } from '../../src/core/types/definitions';
-import { PluginType } from '../../src/core/types/plugin';
-import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../../src/core/types/definitions';
+import { PluginManager } from '../../../src/core/plugin/PluginManager';
+import { StatType, BattleEventType, BuffType, ResourceType } from '../../../src/core/types/definitions';
+import { PluginType } from '../../../src/core/types/plugin';
+import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../../../src/core/types/definitions';
 
 describe('PluginManager', () => {
   let pluginManager: PluginManager;

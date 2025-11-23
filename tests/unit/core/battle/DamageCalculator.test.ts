@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { DamageCalculator } from '../../src/core/battle/DamageCalculator';
-import { StatType } from '../../src/core/types/definitions';
-import type { CharacterInstance, CharacterStatus } from '../../src/core/types/battle';
+import { DamageCalculator } from '../../../../src/core/battle/DamageCalculator';
+import { StatType } from '../../../../src/core/types/definitions';
+import type { CharacterInstance, CharacterStatus } from '../../../../src/core/types/battle';
 
 describe('DamageCalculator', () => {
   let calculator: DamageCalculator;

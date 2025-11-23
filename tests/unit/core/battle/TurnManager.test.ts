@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TurnManager } from '../../src/core/battle/TurnManager';
-import { BuffType, StatType } from '../../src/core/types/definitions';
-import type { CharacterInstance } from '../../src/core/types/battle';
-import type { GameDataInterface } from '../../src/core/types/plugin';
+import { TurnManager } from '../../../../src/core/battle/TurnManager';
+import { BuffType, StatType } from '../../../../src/core/types/definitions';
+import type { CharacterInstance } from '../../../../src/core/types/battle';
+import type { GameDataInterface } from '../../../../src/core/types/plugin';
 
 // Mock GameData to support status lookups
 class MockGameData implements GameDataInterface {
