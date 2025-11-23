@@ -19,7 +19,7 @@ export class BattleEngine {
   
   constructor(gameData: GameDataInterface) {
     this.gameData = gameData;
-    this.turnManager = new TurnManager();
+    this.turnManager = new TurnManager([], gameData); // 传入gameData参数
     this.damageCalculator = new DamageCalculator();
     this.eventListeners = new Map();
     

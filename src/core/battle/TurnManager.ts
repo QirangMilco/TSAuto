@@ -1,5 +1,6 @@
 import type { CharacterInstance, CharacterStatus } from '../types/battle';
 import { BuffType } from '../types/definitions';
+import type { GameDataInterface } from '../types/plugin';
 
 /**
  * 行动条管理器
@@ -9,15 +10,26 @@ export class TurnManager {
   private static readonly MIN_SPEED = 10;        // 最小速度
   private static readonly MAX_SPEED = 1000;      // 最大速度
   private globalFastestSpeed: number = 100;     // 全场一速，默认为100
+  private gameData?: GameDataInterface;         // 游戏数据访问接口
   
   /**
    * 构造函数
    * @param characters 所有角色实例，用于计算全场一速
+   * @param gameData 游戏数据访问接口，用于获取状态定义
    */
-  constructor(characters: CharacterInstance[] = []) {
+  constructor(characters: CharacterInstance[] = [], gameData?: GameDataInterface) {
+    this.gameData = gameData;
     if (characters.length > 0) {
       this.recalculateGlobalSpeed(characters);
     }
+  }
+
+  /**
+   * 设置游戏数据访问接口
+   * @param gameData 游戏数据访问接口
+   */
+  public setGameData(gameData: GameDataInterface): void {
+    this.gameData = gameData;
   }
   
   /**
@@ -92,15 +104,21 @@ export class TurnManager {
   public getSpeedBuffs(character: CharacterInstance): number {
     let totalModifier = 0;
     
+    // 如果没有游戏数据接口，返回0
+    if (!this.gameData) {
+      return totalModifier;
+    }
+    
     for (const status of character.statuses) {
-      // 直接使用类型断言获取所需属性
-      const typedStatus = status as CharacterStatus & { 
-        type?: BuffType; 
-        effect?: { value: number };
-      };
+      // 通过statusId从游戏数据中获取状态定义
+      const statusDefinition = this.gameData!.getStatus(status.statusId);
       
-      if (typedStatus.type === BuffType.SPD_UP) {
-        totalModifier += typedStatus.effect?.value || 0;
+      // 检查状态定义是否存在并且类型为速度提升
+      if (statusDefinition && statusDefinition.type === BuffType.SPD_UP) {
+        // 从状态定义的statModifiers中获取速度加成
+        // 注意：这里假设速度加成存储在SPD_P属性中，需要根据实际设计调整
+        const speedBonus = statusDefinition.statModifiers?.SPD_P || 0;
+        totalModifier += speedBonus / 100; // 转换为小数
       }
     }
     

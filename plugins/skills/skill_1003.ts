@@ -1,14 +1,14 @@
 /**
  * 风卷残云 - 终极技能插件
  */
-import { EffectType, TargetType } from '../../src/core/types/definitions';
+import { EffectType, TargetType, ResourceType } from '../../src/core/types/definitions';
 
 export default {
   id: "SKILL_1003",
   name: "风卷残云",
   
   cost: {
-    type: "BATTLE_RESOURCE",
+    type: ResourceType.BATTLE_RESOURCE,
     amount: 100 // 消耗100点资源
   },
   

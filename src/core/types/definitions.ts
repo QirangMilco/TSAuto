@@ -77,6 +77,10 @@ export enum BuffType {
   POISONED = "POISONED"        // 中毒
 }
 
+export enum ResourceType {
+  BATTLE_RESOURCE = "BATTLE_RESOURCE"  // 战斗资源类型
+}
+
 // ==================== 核心接口 ====================
 
 /**
@@ -156,7 +160,7 @@ export interface SkillDefinition {
   
   // 技能消耗
   cost: {
-    type: "BATTLE_RESOURCE"; 
+    type: ResourceType; 
     amount: number;
   };
   

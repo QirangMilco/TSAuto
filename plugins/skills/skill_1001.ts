@@ -1,14 +1,14 @@
 /**
  * 风切 - 普通攻击技能插件
  */
-import { EffectType, TargetType, BattleEventType } from '../../src/core/types/definitions';
+import { EffectType, TargetType, BattleEventType, ResourceType } from '../../src/core/types/definitions';
 
 export default {
   id: "SKILL_1001",
   name: "风切",
   
   cost: {
-    type: "BATTLE_RESOURCE",
+    type: ResourceType.BATTLE_RESOURCE,
     amount: 0 // 普通攻击无消耗
   },
   

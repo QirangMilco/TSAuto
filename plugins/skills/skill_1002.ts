@@ -1,14 +1,14 @@
 /**
  * 风之屏障 - 防御技能插件
  */
-import { EffectType, TargetType, BattleEventType, StatType } from '../../src/core/types/definitions';
+import { EffectType, TargetType, BattleEventType, StatType, ResourceType } from '../../src/core/types/definitions';
 
 export default {
   id: "SKILL_1002",
   name: "风之屏障",
   
   cost: {
-    type: "BATTLE_RESOURCE",
+    type: ResourceType.BATTLE_RESOURCE,
     amount: 25 // 消耗25点资源
   },
   
