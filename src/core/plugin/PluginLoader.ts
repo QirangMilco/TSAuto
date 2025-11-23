@@ -59,7 +59,8 @@ export class PluginLoader {
       
       // 使用Vite的import.meta.glob加载单个插件
       try {
-        const module = await import(`/plugins/${path}`);
+        // 添加 @vite-ignore 注释并使用正确的相对路径
+        const module = await import(/* @vite-ignore */ `../../../../plugins/${path}`);
         return await this.processPluginModule(path, module, type);
       } catch (importError) {
         console.error(`Failed to import plugin: /plugins/${path}`, importError);

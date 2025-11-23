@@ -179,3 +179,6 @@ export class TermsManager {
 export const getTerms = (): TermsConfig => TermsManager.getInstance().getTerms();
 export const getTerm = (path: string): string | undefined => TermsManager.getInstance().getTerm(path);
 export const setTerms = (terms: Partial<TermsConfig>): void => TermsManager.getInstance().setTerms(terms);
+
+// 导出 TERMS 作为默认术语配置的别名，方便使用
+export const TERMS = DEFAULT_TERMS;
