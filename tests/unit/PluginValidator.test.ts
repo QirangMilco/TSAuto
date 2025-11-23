@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginValidator } from '../../src/core/plugin/PluginValidator';
-import { PluginType, StatType, BuffType, BattleEventType, EffectType } from '../../src/core/types/definitions';
-import type { PluginMetadata } from '../../src/core/types/plugin';
+import { StatType, BuffType, BattleEventType, EffectType, ResourceType } from '../../src/core/types/definitions';
+import { PluginType } from '../../src/core/types/plugin';
 import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../../src/core/types/definitions';
 
 describe('PluginValidator', () => {
@@ -16,70 +16,92 @@ describe('PluginValidator', () => {
       const validCharacter: CharacterDefinition = {
         id: 'char1',
         name: 'Valid Character',
-        resourcePath: '/characters/char1',
-        growth: {
-          [StatType.ATK]: 10,
-          [StatType.DEF]: 5,
-          [StatType.HP]: 100,
-          [StatType.SPD]: 2
+        assets: {
+          avatar: 'avatar.png',
+          portrait: 'portrait.png'
         },
-        skillIds: ['skill1', 'skill2']
+        growthValuesBeforeAwake: {
+          hp: 10,
+          atk: 5,
+          def: 2
+        },
+        baseValuesBeforeAwake: {
+          spd: 100,
+          crit: 0.1,
+          critDmg: 1.5
+        },
+        growthValuesAfterAwake: {
+          hp: 12,
+          atk: 8,
+          def: 4
+        },
+        baseValuesAfterAwake: {
+          spd: 120,
+          crit: 0.15,
+          critDmg: 1.5
+        },
+        skills: ['skill1', 'skill2', 'skill3']
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.CHARACTER,
-        definition: validCharacter
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      // 更新调用签名
+      const isValid = validator.validatePlugin(validCharacter.id, PluginType.CHARACTER, validCharacter);
+      expect(isValid).toBe(true);
     });
     
     it('should invalidate character plugin with missing required fields', () => {
       const invalidCharacter = {
         id: 'char1',
         // 缺少 name
-        resourcePath: '/characters/char1',
-        growth: {
-          [StatType.ATK]: 10
-          // 缺少其他成长属性
+        assets: { avatar: '', portrait: '' },
+        growthValuesBeforeAwake: {
+          hp: 10,
+          atk: 5,
+          def: 2
         },
-        skillIds: []
+        // 缺少 baseValuesBeforeAwake
+        growthValuesAfterAwake: {
+          hp: 12,
+          atk: 8,
+          def: 4
+        },
+        // 缺少 baseValuesAfterAwake
+        skills: []
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.CHARACTER,
-        definition: invalidCharacter as any
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toHaveLength(1);
+      const isValid = validator.validatePlugin(invalidCharacter.id, PluginType.CHARACTER, invalidCharacter);
+      expect(isValid).toBe(false);
     });
     
     it('should invalidate character plugin with invalid growth values', () => {
       const invalidCharacter: CharacterDefinition = {
         id: 'char1',
         name: 'Invalid Character',
-        resourcePath: '/characters/char1',
-        growth: {
-          [StatType.ATK]: -10, // 负值
-          [StatType.DEF]: 5,
-          [StatType.HP]: 100,
-          [StatType.SPD]: 2
+        assets: { avatar: 'a', portrait: 'p' },
+        growthValuesBeforeAwake: {
+          hp: 100,
+          atk: -10,
+          def: 2
         },
-        skillIds: []
+        baseValuesBeforeAwake: {
+          spd: 100,
+          crit: 0.1,
+          critDmg: 1.5
+        },
+        growthValuesAfterAwake: {
+          hp: 12,
+          atk: 8,
+          def: 4
+        },
+        baseValuesAfterAwake: {
+          spd: 120,
+          crit: 0.15,
+          critDmg: 1.5
+        },
+        skills: ["s1", "s2", "s3"]
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.CHARACTER,
-        definition: invalidCharacter
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toHaveLength(1);
+      const isValid = validator.validatePlugin(invalidCharacter.id, PluginType.CHARACTER, invalidCharacter);
+      expect(isValid).toBe(false);
     });
   });
   
@@ -88,69 +110,53 @@ describe('PluginValidator', () => {
       const validSkill: SkillDefinition = {
         id: 'skill1',
         name: 'Valid Skill',
-        cost: 25,
-        effects: [{
+        cost: {type: ResourceType.BATTLE_RESOURCE, amount: 25},
+        activeEffects: [{
           type: EffectType.DAMAGE,
-          target: 'enemy',
-          value: 1,
-          properties: { isAoE: false }
+          target: 'TARGET' as any,
+          damageMultiplier: 1.0,
+          baseDamageStat: StatType.ATK
         }],
-        passive: null,
         description: 'Valid skill description'
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.SKILL,
-        definition: validSkill
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      const isValid = validator.validatePlugin(validSkill.id, PluginType.SKILL, validSkill);
+      expect(isValid).toBe(true);
     });
     
     it('should invalidate skill plugin with negative cost', () => {
       const invalidSkill: SkillDefinition = {
         id: 'skill1',
         name: 'Invalid Skill',
-        cost: -25, // 负值
-        effects: [],
-        passive: null,
+        cost: {type: ResourceType.BATTLE_RESOURCE, amount: -25}, // 负值
+        activeEffects: [],
         description: ''
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.SKILL,
-        definition: invalidSkill
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toHaveLength(1);
+      const isValid = validator.validatePlugin(invalidSkill.id, PluginType.SKILL, invalidSkill);
+      expect(isValid).toBe(false);
     });
     
     it('should validate skill plugin with passive', () => {
       const validSkillWithPassive: SkillDefinition = {
         id: 'skill1',
         name: 'Skill With Passive',
-        cost: 0,
-        effects: [],
-        passive: {
-          listenTo: BattleEventType.ATTACK,
-          triggerCondition: (event) => true,
-          executeEffect: (event) => {}
-        },
+        cost: {type: ResourceType.BATTLE_RESOURCE, amount: 0},
+        activeEffects: [],
+        passiveListeners: [{
+          event: BattleEventType.ON_DAMAGE_DEALT,
+          effects: [{
+            type: EffectType.DAMAGE,
+            target: 'TARGET' as any,
+            damageMultiplier: 1.0,
+            baseDamageStat: StatType.ATK
+          }]
+        }],
         description: 'Has passive effect'
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.SKILL,
-        definition: validSkillWithPassive
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      const isValid = validator.validatePlugin(validSkillWithPassive.id, PluginType.SKILL, validSkillWithPassive);
+      expect(isValid).toBe(true);
     });
   });
   
@@ -159,22 +165,17 @@ describe('PluginValidator', () => {
       const validEquipment: EquipmentDefinition = {
         id: 'equip1',
         name: 'Valid Equipment',
-        type: 'weapon',
+        setId: 'set1',
+        slot: 1,
         baseStats: {
           [StatType.ATK]: 100,
           [StatType.CRIT]: 0.1
         },
-        possibleSubStats: [StatType.ATK_P, StatType.CRIT_DMG]
+        possibleSecondaryStats: [StatType.ATK_P, StatType.CRIT_DMG]
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.EQUIPMENT,
-        definition: validEquipment
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      const isValid = validator.validatePlugin(validEquipment.id, PluginType.EQUIPMENT, validEquipment);
+      expect(isValid).toBe(true);
     });
     
     it('should invalidate equipment plugin with invalid stat type', () => {
@@ -185,17 +186,11 @@ describe('PluginValidator', () => {
         baseStats: {
           'invalid_stat': 100 // 无效的属性类型
         },
-        possibleSubStats: []
+        possibleSecondaryStats: []
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.EQUIPMENT,
-        definition: invalidEquipment as any
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toHaveLength(1);
+      const isValid = validator.validatePlugin(invalidEquipment.id, PluginType.EQUIPMENT, invalidEquipment as any);
+      expect(isValid).toBe(false);
     });
   });
   
@@ -204,52 +199,33 @@ describe('PluginValidator', () => {
       const validStatus: StatusDefinition = {
         id: 'status1',
         name: 'Valid Status',
-        effects: [{
-          type: BuffType.ATK_UP,
-          value: 0.2
-        }],
+        type: BuffType.ATK_UP,
         duration: 2,
-        isStackable: false
+        statModifiers: {
+          [StatType.ATK]: 10
+        }
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.STATUS,
-        definition: validStatus
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      const isValid = validator.validatePlugin(validStatus.id, PluginType.STATUS, validStatus);
+      expect(isValid).toBe(true);
     });
     
     it('should invalidate status plugin with negative duration', () => {
       const invalidStatus: StatusDefinition = {
         id: 'status1',
         name: 'Invalid Status',
-        effects: [],
+        type: BuffType.ATK_UP,
         duration: -1, // 负值
-        isStackable: true
+        statModifiers: {}
       };
       
-      const plugin: PluginMetadata = {
-        type: PluginType.STATUS,
-        definition: invalidStatus
-      };
-      
-      const result = validator.validatePlugin(plugin);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toHaveLength(1);
+      const isValid = validator.validatePlugin(invalidStatus.id, PluginType.STATUS, invalidStatus);
+      expect(isValid).toBe(false);
     });
   });
   
   it('should handle unknown plugin type', () => {
-    const unknownPlugin: PluginMetadata = {
-      type: 'unknown_type' as any,
-      definition: {}
-    };
-    
-    const result = validator.validatePlugin(unknownPlugin);
-    expect(result.isValid).toBe(false);
-    expect(result.errors).toHaveLength(1);
+    const isValid = validator.validatePlugin('id', 'UNKNOWN' as PluginType, {});
+    expect(isValid).toBe(false);
   });
 });

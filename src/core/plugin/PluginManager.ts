@@ -32,6 +32,50 @@ export class PluginManager implements GameDataInterface {
     // 加载所有插件
     await this.loadAllPlugins();
   }
+
+  /**
+   * 手动注册插件 (用于测试或动态生成)
+   */
+  public registerPlugin(pluginOrId: string | { type: PluginType, definition: any }, type?: PluginType, content?: any): void {
+    let id: string;
+    let pType: PluginType;
+    let pContent: any;
+
+    // 处理重载: registerPlugin(pluginWrapper)
+    if (typeof pluginOrId === 'object') {
+      pContent = pluginOrId.definition;
+      pType = pluginOrId.type;
+      id = pContent.id;
+    } 
+    // 处理重载: registerPlugin(id, type, content)
+    else {
+      id = pluginOrId;
+      pType = type!;
+      pContent = content;
+    }
+
+    if (!id || !pType || !pContent) {
+      console.warn('Register plugin failed: Invalid arguments');
+      return;
+    }
+
+    // 注册到通用注册表
+    this.pluginRegistry.set(id, pContent);
+    
+    // 创建基础元数据
+    const metadata: PluginMetadata = {
+      id,
+      type: pType,
+      path: 'manual_registration',
+      version: '1.0.0',
+      author: 'System',
+      loadTime: Date.now()
+    };
+    this.metadataRegistry.set(id, metadata);
+
+    // 分类注册
+    this.registerPluginByType(id, pType, pContent);
+  }
   
   /**
    * 加载所有插件
@@ -78,6 +122,18 @@ export class PluginManager implements GameDataInterface {
         break;
     }
   }
+
+  /**
+   * 卸载所有插件 (用于测试清理)
+   */
+  public unloadAllPlugins(): void {
+    this.pluginRegistry.clear();
+    this.metadataRegistry.clear();
+    this.characters.clear();
+    this.skills.clear();
+    this.equipment.clear();
+    this.statuses.clear();
+  }
   
   /**
    * 动态加载单个插件
@@ -113,26 +169,34 @@ export class PluginManager implements GameDataInterface {
    */
   public unloadPlugin(id: string): boolean {
     const metadata = this.metadataRegistry.get(id);
-    if (!metadata) return false;
+    // 如果没有元数据但有内容，尝试从所有表中移除
+    if (!metadata && !this.pluginRegistry.has(id)) return false;
     
     // 从所有注册表中移除
     this.pluginRegistry.delete(id);
     this.metadataRegistry.delete(id);
     
-    // 从分类存储中移除
-    switch (metadata.type) {
-      case PluginType.CHARACTER:
+    // 尝试从所有分类表中移除 (如果知道类型更好，不知道就全试一遍)
+    if (metadata) {
+        switch (metadata.type) {
+        case PluginType.CHARACTER:
+            this.characters.delete(id);
+            break;
+        case PluginType.SKILL:
+            this.skills.delete(id);
+            break;
+        case PluginType.EQUIPMENT:
+            this.equipment.delete(id);
+            break;
+        case PluginType.STATUS:
+            this.statuses.delete(id);
+            break;
+        }
+    } else {
         this.characters.delete(id);
-        break;
-      case PluginType.SKILL:
         this.skills.delete(id);
-        break;
-      case PluginType.EQUIPMENT:
         this.equipment.delete(id);
-        break;
-      case PluginType.STATUS:
         this.statuses.delete(id);
-        break;
     }
     
     return true;

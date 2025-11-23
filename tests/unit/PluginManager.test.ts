@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginManager } from '../../src/core/plugin/PluginManager';
-import { StatType, BattleEventType } from '../../src/core/types/definitions';
+import { StatType, BattleEventType, BuffType, ResourceType } from '../../src/core/types/definitions';
 import { PluginType } from '../../src/core/types/plugin';
 import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../../src/core/types/definitions';
-import type { PluginMetadata } from '../../src/core/types/plugin';
 
 describe('PluginManager', () => {
   let pluginManager: PluginManager;
@@ -20,22 +19,22 @@ describe('PluginManager', () => {
         avatar: 'avatar.png',
         portrait: 'portrait.png'
       },
-      growthValueBeforeAwake: {
+      growthValuesBeforeAwake: {
         hp: 10,
         atk: 5,
         def: 2
       },
-      baseValueBeforeAwake: {
+      baseValuesBeforeAwake: {
         spd: 100,
         crit: 0.1,
         critDmg: 1.5
       },
-      growthValueAfterAwake: {
+      growthValuesAfterAwake: {
         hp: 12,
         atk: 8,
         def: 4
       },
-      baseValueAfterAwake: {
+      baseValuesAfterAwake: {
         spd: 120,
         crit: 0.15,
         critDmg: 1.5
@@ -54,7 +53,7 @@ describe('PluginManager', () => {
       id: 'skill1',
       name: 'Test Skill',
       cost: {
-        type: "BATTLE_RESOURCE",
+        type: ResourceType.BATTLE_RESOURCE,
         amount: 25
       },
       activeEffects: [],
@@ -67,13 +66,7 @@ describe('PluginManager', () => {
       description: 'Test skill description'
     };
     
-    const plugin: PluginMetadata = {
-      id: skillDef.id,
-      type: PluginType.SKILL,
-      definition: skillDef
-    };
-    
-    pluginManager.registerPlugin(plugin);
+    pluginManager.registerPlugin(skillDef.id, PluginType.SKILL, skillDef);
     
     const result = pluginManager.getSkill('skill1');
     expect(result).toEqual(skillDef);
@@ -83,20 +76,16 @@ describe('PluginManager', () => {
     const equipmentDef: EquipmentDefinition = {
       id: 'equip1',
       name: 'Test Equipment',
-      type: 'weapon',
+      setId: 'set1',
+      slot: 1,
       baseStats: {
         [StatType.ATK]: 100,
         [StatType.CRIT]: 0.1
       },
-      possibleSubStats: [StatType.ATK_P, StatType.CRIT_DMG]
+      possibleSecondaryStats: [StatType.ATK_P, StatType.CRIT_DMG]
     };
     
-    const plugin: PluginMetadata = {
-      type: PluginType.EQUIPMENT,
-      definition: equipmentDef
-    };
-    
-    pluginManager.registerPlugin(plugin);
+    pluginManager.registerPlugin(equipmentDef.id, PluginType.EQUIPMENT, equipmentDef);
     
     const result = pluginManager.getEquipment('equip1');
     expect(result).toEqual(equipmentDef);
@@ -106,17 +95,12 @@ describe('PluginManager', () => {
     const statusDef: StatusDefinition = {
       id: 'status1',
       name: 'Test Status',
-      effects: [],
+      type: BuffType.STATUS,
       duration: 2,
-      isStackable: false
+      statModifiers: {}
     };
     
-    const plugin: PluginMetadata = {
-      type: PluginType.STATUS,
-      definition: statusDef
-    };
-    
-    pluginManager.registerPlugin(plugin);
+    pluginManager.registerPlugin(statusDef.id, PluginType.STATUS, statusDef);
     
     const result = pluginManager.getStatus('status1');
     expect(result).toEqual(statusDef);
@@ -127,22 +111,34 @@ describe('PluginManager', () => {
     const characterDef1: CharacterDefinition = {
       id: 'char1',
       name: 'Test Character 1',
-      resourcePath: '/characters/char1',
-      growth: {
-        [StatType.ATK]: 10,
-        [StatType.DEF]: 5,
-        [StatType.HP]: 100,
-        [StatType.SPD]: 2
+      assets: {
+        avatar: '',
+        portrait: ''
       },
-      skillIds: ['skill1']
+      growthValuesBeforeAwake: {
+        hp: 10,
+        atk: 5,
+        def: 2
+      },
+      baseValuesBeforeAwake: {
+        spd: 100,
+        crit: 0.0,
+        critDmg: 0.0
+      },
+      growthValuesAfterAwake: {
+        hp: 12,
+        atk: 8,
+        def: 4
+      },
+      baseValuesAfterAwake: {
+        spd: 120,
+        crit: 0.15,
+        critDmg: 1.5
+      },
+      skills: ['skill1', "s2", "s3"]
     };
     
-    const plugin1: PluginMetadata = {
-      type: PluginType.CHARACTER,
-      definition: characterDef1
-    };
-    
-    pluginManager.registerPlugin(plugin1);
+    pluginManager.registerPlugin(characterDef1.id, PluginType.CHARACTER, characterDef1);
     
     // 注册相同ID的第二个插件（覆盖）
     const characterDef2: CharacterDefinition = {
@@ -150,12 +146,7 @@ describe('PluginManager', () => {
       name: 'Test Character 2'
     };
     
-    const plugin2: PluginMetadata = {
-      type: PluginType.CHARACTER,
-      definition: characterDef2
-    };
-    
-    pluginManager.registerPlugin(plugin2);
+    pluginManager.registerPlugin(characterDef2.id, PluginType.CHARACTER, characterDef2);
     
     // 应该返回第二个插件的值
     const result = pluginManager.getCharacter('char1');
@@ -174,22 +165,34 @@ describe('PluginManager', () => {
     const characterDef: CharacterDefinition = {
       id: 'char1',
       name: 'Test Character',
-      resourcePath: '/characters/char1',
-      growth: {
-        [StatType.ATK]: 10,
-        [StatType.DEF]: 5,
-        [StatType.HP]: 100,
-        [StatType.SPD]: 2
+      assets: {
+        avatar: '',
+        portrait: ''
       },
-      skillIds: ['skill1']
+      growthValuesBeforeAwake: {
+        hp: 10,
+        atk: 5,
+        def: 2
+      },
+      baseValuesBeforeAwake: {
+        spd: 100,
+        crit: 0.0,
+        critDmg: 0.0
+      },
+      growthValuesAfterAwake: {
+        hp: 12,
+        atk: 8,
+        def: 4
+      },
+      baseValuesAfterAwake: {
+        spd: 120,
+        crit: 0.15,
+        critDmg: 1.5
+      },
+      skills: ['skill1', "s2", "s3"]
     };
     
-    const plugin: PluginMetadata = {
-      type: PluginType.CHARACTER,
-      definition: characterDef
-    };
-    
-    pluginManager.registerPlugin(plugin);
+    pluginManager.registerPlugin(characterDef.id, PluginType.CHARACTER, characterDef);
     
     // 验证已注册
     expect(pluginManager.getCharacter('char1')).toBeDefined();
@@ -206,42 +209,62 @@ describe('PluginManager', () => {
     const char1: CharacterDefinition = {
       id: 'char1',
       name: 'Char 1',
-      resourcePath: '/characters/char1',
-      growth: {
-        [StatType.ATK]: 10,
-        [StatType.DEF]: 5,
-        [StatType.HP]: 100,
-        [StatType.SPD]: 2
+      assets: {
+        avatar: '',
+        portrait: ''
       },
-      skillIds: []
+      growthValuesBeforeAwake: {
+        hp: 10,
+        atk: 5,
+        def: 2
+      },
+      baseValuesBeforeAwake: {
+        spd: 100,
+        crit: 0.0,
+        critDmg: 0.0
+      },
+      growthValuesAfterAwake: {
+        hp: 12,
+        atk: 8,
+        def: 4
+      },
+      baseValuesAfterAwake: {
+        spd: 120,
+        crit: 0.15,
+        critDmg: 1.5
+      },
+      skills: ['s1', 's2', 's3']
     };
     
     const char2: CharacterDefinition = {
       id: 'char2',
       name: 'Char 2',
-      resourcePath: '/characters/char2',
-      growth: {
-        [StatType.ATK]: 15,
-        [StatType.DEF]: 8,
-        [StatType.HP]: 150,
-        [StatType.SPD]: 3
+      assets: {avatar: '', portrait: ''},
+      growthValuesBeforeAwake: {
+        hp: 15,
+        atk: 8,
+        def: 4
       },
-      skillIds: []
+      baseValuesBeforeAwake: {
+        spd: 100,
+        crit: 0.0,
+        critDmg: 0.0
+      },
+      growthValuesAfterAwake: {
+        hp: 17,
+        atk: 12,
+        def: 6
+      },
+      baseValuesAfterAwake: {
+        spd: 120,
+        crit: 0.15,
+        critDmg: 1.5
+      },
+      skills: ['s4', 's5', 's6']
     };
     
-    pluginManager.registerPlugin({ type: PluginType.CHARACTER, definition: char1 });
-    pluginManager.registerPlugin({ type: PluginType.CHARACTER, definition: char2 });
-    pluginManager.registerPlugin({
-      type: PluginType.SKILL,
-      definition: {
-        id: 'skill1',
-        name: 'Test Skill',
-        cost: 25,
-        effects: [],
-        passive: null,
-        description: ''
-      }
-    });
+    pluginManager.registerPlugin(char1.id, PluginType.CHARACTER, char1);
+    pluginManager.registerPlugin(char2.id, PluginType.CHARACTER, char2);
     
     const allCharacters = pluginManager.getAllCharacters();
     expect(allCharacters.length).toBe(2);

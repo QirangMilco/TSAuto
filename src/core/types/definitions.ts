@@ -57,6 +57,7 @@ export enum StatType {
   ATK_P = "ATK_P",     // 攻击加成(%)
   DEF_P = "DEF_P",     // 防御加成(%)
   HP_P = "HP_P",       // 生命加成(%)
+  SPD_P = "SPD_P",      // 速度加成(%)
   
   // 特殊属性
   DMG_BONUS = "DMG_BONUS",         // 伤害加成
@@ -123,26 +124,26 @@ export interface CharacterDefinition {
   };
   
   // 觉醒前
-  growthValueBeforeAwake: {
+  growthValuesBeforeAwake: {
     hp: number;     // 生命成长值
     atk: number;    // 攻击成长值
     def: number;    // 防御成长值
   }
 
-  baseValueBeforeAwake: {
+  baseValuesBeforeAwake: {
     spd: number;    // 速度
     crit: number;   // 暴击率
     critDmg: number; // 暴击伤害
   }
 
   // 觉醒后
-  growthValueAfterAwake: {
+  growthValuesAfterAwake: {
     hp: number;     // 生命成长值
     atk: number;    // 攻击成长值
     def: number;    // 防御成长值
   }
 
-  baseValueAfterAwake: {
+  baseValuesAfterAwake: {
     spd: number;    // 速度
     crit: number;   // 暴击率
     critDmg: number; // 暴击伤害

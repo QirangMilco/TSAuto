@@ -2,14 +2,44 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { TurnManager } from '../../src/core/battle/TurnManager';
 import { BuffType, StatType } from '../../src/core/types/definitions';
 import type { CharacterInstance } from '../../src/core/types/battle';
+import type { GameDataInterface } from '../../src/core/types/plugin';
+
+// Mock GameData to support status lookups
+class MockGameData implements GameDataInterface {
+  getCharacter = () => undefined;
+  getAllCharacters = () => [];
+  getSkill = () => undefined;
+  getAllSkills = () => [];
+  getEquipment = () => undefined;
+  getAllEquipment = () => [];
+  
+  // Implemented for the test
+  getStatus(id: string) {
+    if (id === 'speed_buff') {
+      return {
+        id: 'speed_buff',
+        name: 'Speed Buff',
+        type: BuffType.SPD_UP,
+        statModifiers: {
+          [StatType.SPD_P]: 30 // 30% speed boost
+        }
+      };
+    }
+    return undefined;
+  }
+  getAllStatuses = () => [];
+  initialize = async () => {};
+}
 
 describe('TurnManager', () => {
   let turnManager: TurnManager;
   let character1: CharacterInstance;
   let character2: CharacterInstance;
   let characters: CharacterInstance[];
+  let mockGameData: MockGameData;
   
   beforeEach(() => {
+    mockGameData = new MockGameData();
     // 创建测试角色实例
     character1 = {
       instanceId: 'char1',
@@ -27,7 +57,9 @@ describe('TurnManager', () => {
         [StatType.DMG_BONUS]: 0,
         [StatType.DMG_TAKEN_BONUS]: 0,
         [StatType.IGNORE_DEF_P]: 0,
-        [StatType.IGNORE_DEF_FLAT]: 0
+        [StatType.IGNORE_DEF_FLAT]: 0,
+        [StatType.HEAL_BONUS]: 0,
+        [StatType.RECEIVE_HEAL_BONUS]: 0
       },
       actionBarPosition: 0,
       statuses: [],
@@ -51,8 +83,8 @@ describe('TurnManager', () => {
     };
     
     characters = [character1, character2];
-    // 现在构造函数需要传入角色列表来计算全场一速
-    turnManager = new TurnManager(characters);
+    // 现在构造函数需要传入角色列表和游戏数据接口
+    turnManager = new TurnManager(characters, mockGameData);
   });
   
   it('should calculate effective speed correctly', () => {
@@ -65,9 +97,7 @@ describe('TurnManager', () => {
     character1.statuses = [{
       statusId: 'speed_buff',
       remainingTurns: 2,
-      stackCount: 1,
-      type: BuffType.SPD_UP,
-      effect: { value: 0.3 }
+      stackCount: 1
     }];
     
     const speed = turnManager.calculateEffectiveSpeed(character1);

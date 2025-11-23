@@ -40,14 +40,30 @@ export class PluginValidator {
     if (!character.assets.avatar || typeof character.assets.avatar !== 'string') return false;
     if (!character.assets.portrait || typeof character.assets.portrait !== 'string') return false;
     
-    // 成长值验证
-    if (!character.growthValues || typeof character.growthValues !== 'object') return false;
-    if (typeof character.growthValues.hp !== 'number' || character.growthValues.hp < 0) return false;
-    if (typeof character.growthValues.atk !== 'number' || character.growthValues.atk < 0) return false;
-    if (typeof character.growthValues.def !== 'number' || character.growthValues.def < 0) return false;
-    if (typeof character.growthValues.spd !== 'number' || character.growthValues.spd < 0) return false;
-    if (typeof character.growthValues.crit !== 'number' || character.growthValues.crit < 0) return false;
-    if (typeof character.growthValues.critDmg !== 'number' || character.growthValues.critDmg < 0) return false;
+    // 成长值验证 - 修改为适应新的字段结构
+    // 验证觉醒前成长值
+    if (!character.growthValuesBeforeAwake || typeof character.growthValuesBeforeAwake !== 'object') return false;
+    if (typeof character.growthValuesBeforeAwake.hp !== 'number' || character.growthValuesBeforeAwake.hp < 0) return false;
+    if (typeof character.growthValuesBeforeAwake.atk !== 'number' || character.growthValuesBeforeAwake.atk < 0) return false;
+    if (typeof character.growthValuesBeforeAwake.def !== 'number' || character.growthValuesBeforeAwake.def < 0) return false;
+    
+    // 验证觉醒前基础值
+    if (!character.baseValuesBeforeAwake || typeof character.baseValuesBeforeAwake !== 'object') return false;
+    if (typeof character.baseValuesBeforeAwake.spd !== 'number' || character.baseValuesBeforeAwake.spd < 0) return false;
+    if (typeof character.baseValuesBeforeAwake.crit !== 'number' || character.baseValuesBeforeAwake.crit < 0) return false;
+    if (typeof character.baseValuesBeforeAwake.critDmg !== 'number' || character.baseValuesBeforeAwake.critDmg < 0) return false;
+    
+    // 验证觉醒后成长值
+    if (!character.growthValuesAfterAwake || typeof character.growthValuesAfterAwake !== 'object') return false;
+    if (typeof character.growthValuesAfterAwake.hp !== 'number' || character.growthValuesAfterAwake.hp < 0) return false;
+    if (typeof character.growthValuesAfterAwake.atk !== 'number' || character.growthValuesAfterAwake.atk < 0) return false;
+    if (typeof character.growthValuesAfterAwake.def !== 'number' || character.growthValuesAfterAwake.def < 0) return false;
+    
+    // 验证觉醒后基础值
+    if (!character.baseValuesAfterAwake || typeof character.baseValuesAfterAwake !== 'object') return false;
+    if (typeof character.baseValuesAfterAwake.spd !== 'number' || character.baseValuesAfterAwake.spd < 0) return false;
+    if (typeof character.baseValuesAfterAwake.crit !== 'number' || character.baseValuesAfterAwake.crit < 0) return false;
+    if (typeof character.baseValuesAfterAwake.critDmg !== 'number' || character.baseValuesAfterAwake.critDmg < 0) return false;
     
     // 技能验证
     if (!Array.isArray(character.skills) || character.skills.length !== 3) return false;
