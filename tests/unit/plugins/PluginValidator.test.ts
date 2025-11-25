@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginValidator } from '../../../src/core/plugin/PluginValidator';
 import { StatType, BuffType, BattleEventType, EffectType, ResourceType } from '../../../src/core/types/definitions';
 import { PluginType } from '../../../src/core/types/plugin';
-import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../../../src/core/types/definitions';
+import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition, EquipmentSetDefinition } from '../../../src/core/types/definitions';
 
 describe('PluginValidator', () => {
   let validator: PluginValidator;
@@ -220,6 +220,51 @@ describe('PluginValidator', () => {
       };
       
       const isValid = validator.validatePlugin(invalidStatus.id, PluginType.STATUS, invalidStatus);
+      expect(isValid).toBe(false);
+    });
+  });
+
+  describe('Equipment Set Plugin Validation', () => {
+    it('should validate valid equipment set plugin', () => {
+      const validSet: EquipmentSetDefinition = {
+        id: 'SET_TEST',
+        name: 'Test Set',
+        piece2: { stat: StatType.ATK_P, value: 15 },
+        piece4: { stat: StatType.CRIT, value: 15 }
+      };
+      
+      const isValid = validator.validatePlugin(validSet.id, PluginType.EQUIPMENT_SET, validSet);
+      expect(isValid).toBe(true);
+    });
+
+    it('should validate valid equipment set plugin with description only', () => {
+      const validSet: EquipmentSetDefinition = {
+        id: 'SET_MECH',
+        name: 'Mech Set',
+        piece4: { description: 'Special Effect', effectId: 'EFF_1' }
+      };
+      
+      const isValid = validator.validatePlugin(validSet.id, PluginType.EQUIPMENT_SET, validSet);
+      expect(isValid).toBe(true);
+    });
+
+    it('should invalidate equipment set plugin with invalid stat type', () => {
+      const invalidSet: any = {
+        id: 'SET_INVALID',
+        name: 'Invalid Set',
+        piece2: { stat: 'INVALID_STAT', value: 15 }
+      };
+      
+      const isValid = validator.validatePlugin(invalidSet.id, PluginType.EQUIPMENT_SET, invalidSet);
+      expect(isValid).toBe(false);
+    });
+
+    it('should invalidate equipment set plugin with missing name', () => {
+      const invalidSet: any = {
+        id: 'SET_NO_NAME'
+      };
+      
+      const isValid = validator.validatePlugin(invalidSet.id, PluginType.EQUIPMENT_SET, invalidSet);
       expect(isValid).toBe(false);
     });
   });

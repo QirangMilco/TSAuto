@@ -1,5 +1,5 @@
 import type { PluginMetadata, GameDataInterface } from '../types/plugin';
-import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../types/definitions';
+import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition, EquipmentSetDefinition } from '../types/definitions';
 import { PluginType } from '../types/plugin';
 import { PluginLoader } from './PluginLoader';
 import { PluginValidator } from './PluginValidator';
@@ -19,6 +19,7 @@ export class PluginManager implements GameDataInterface {
   private skills: Map<string, SkillDefinition> = new Map();
   private equipment: Map<string, EquipmentDefinition> = new Map();
   private statuses: Map<string, StatusDefinition> = new Map();
+  private equipmentSets: Map<string, EquipmentSetDefinition> = new Map();
   
   constructor() {
     this.pluginLoader = new PluginLoader();
@@ -81,7 +82,13 @@ export class PluginManager implements GameDataInterface {
    * 加载所有插件
    */
   private async loadAllPlugins(): Promise<void> {
-    const pluginTypes = [PluginType.CHARACTER, PluginType.SKILL, PluginType.EQUIPMENT, PluginType.STATUS];
+    const pluginTypes = [
+      PluginType.CHARACTER, 
+      PluginType.SKILL, 
+      PluginType.EQUIPMENT, 
+      PluginType.STATUS, 
+      PluginType.EQUIPMENT_SET
+    ];
     
     for (const type of pluginTypes) {
       const plugins = await this.pluginLoader.loadPluginsByType(type);
@@ -120,6 +127,9 @@ export class PluginManager implements GameDataInterface {
       case PluginType.STATUS:
         this.statuses.set(id, content);
         break;
+      case PluginType.EQUIPMENT_SET:
+        this.equipmentSets.set(id, content);
+        break;
     }
   }
 
@@ -133,6 +143,7 @@ export class PluginManager implements GameDataInterface {
     this.skills.clear();
     this.equipment.clear();
     this.statuses.clear();
+    this.equipmentSets.clear();
   }
   
   /**
@@ -191,12 +202,16 @@ export class PluginManager implements GameDataInterface {
         case PluginType.STATUS:
             this.statuses.delete(id);
             break;
+        case PluginType.EQUIPMENT_SET:
+            this.equipmentSets.delete(id);
+            break;
         }
     } else {
         this.characters.delete(id);
         this.skills.delete(id);
         this.equipment.delete(id);
         this.statuses.delete(id);
+        this.equipmentSets.delete(id);
     }
     
     return true;
@@ -273,4 +288,7 @@ export class PluginManager implements GameDataInterface {
   public getAllStatuses(): StatusDefinition[] {
     return Array.from(this.statuses.values());
   }
+
+  public getEquipmentSet(id: string): EquipmentSetDefinition | undefined { return this.equipmentSets.get(id); }
+  public getAllEquipmentSets(): EquipmentSetDefinition[] { return Array.from(this.equipmentSets.values()); }
 }

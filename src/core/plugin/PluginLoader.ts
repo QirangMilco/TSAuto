@@ -103,7 +103,6 @@ export class PluginLoader {
         path,
         version: moduleMetadata.version || '1.0.0',
         author: moduleMetadata.author || 'Unknown',
-        description: moduleMetadata.description || '',
         loadTime: Date.now()
       };
       
@@ -132,6 +131,8 @@ export class PluginLoader {
         return '/plugins/equipment/*.ts';
       case PluginType.STATUS:
         return '/plugins/statuses/*.ts';
+      case PluginType.EQUIPMENT_SET:
+        return '/plugins/equipment_sets/*.ts';
       default:
         return '/plugins/**/*.ts';
     }
@@ -150,6 +151,8 @@ export class PluginLoader {
         return path.includes('/equipment/') || path.includes('equip_');
       case PluginType.STATUS:
         return path.includes('/statuses/') || path.includes('status_');
+      case PluginType.EQUIPMENT_SET:
+        return path.includes('/equipment-sets/') || path.includes('set_');
       default:
         return true;
     }
@@ -176,6 +179,8 @@ export class PluginLoader {
       return PluginType.EQUIPMENT;
     } else if (path.includes('/statuses/') || path.includes('status_')) {
       return PluginType.STATUS;
+    } else if (path.includes('/equipment-sets/') || path.includes('set_')) {
+      return PluginType.EQUIPMENT_SET;
     }
     return PluginType.UNKNOWN;
   }

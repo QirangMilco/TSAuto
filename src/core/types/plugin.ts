@@ -1,4 +1,4 @@
-import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from './definitions';
+import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition, EquipmentSetDefinition } from './definitions';
 
 /**
  * 插件类型 (修改为 Enum)
@@ -8,6 +8,7 @@ export enum PluginType {
   SKILL = 'SKILL',
   EQUIPMENT = 'EQUIPMENT',
   STATUS = 'STATUS',
+  EQUIPMENT_SET = 'EQUIPMENT_SET',
   UNKNOWN = 'UNKNOWN'
 }
 
@@ -42,6 +43,10 @@ export interface GameDataInterface {
   // 状态相关
   getStatus(id: string): StatusDefinition | undefined;
   getAllStatuses(): StatusDefinition[];
+
+  // 套装查询接口
+  getEquipmentSet(id: string): EquipmentSetDefinition | undefined;
+  getAllEquipmentSets(): EquipmentSetDefinition[];
   
   // 初始化
   initialize(): Promise<void>;

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginManager } from '../../../src/core/plugin/PluginManager';
 import { StatType, BattleEventType, BuffType, ResourceType } from '../../../src/core/types/definitions';
 import { PluginType } from '../../../src/core/types/plugin';
-import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition } from '../../../src/core/types/definitions';
+import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusDefinition, EquipmentSetDefinition } from '../../../src/core/types/definitions';
 
 describe('PluginManager', () => {
   let pluginManager: PluginManager;
@@ -270,5 +270,36 @@ describe('PluginManager', () => {
     expect(allCharacters.length).toBe(2);
     expect(allCharacters).toContain(char1);
     expect(allCharacters).toContain(char2);
+  });
+
+  it('should register equipment set plugin successfully', () => {
+    const setDef: EquipmentSetDefinition = {
+      id: 'SET_WIND',
+      name: 'Wind Set',
+      piece2: { stat: StatType.SPD, value: 15 },
+      piece4: { description: 'Boost speed by 20%', effectId: 'EFF_SPD_BOOST' }
+    };
+    
+    pluginManager.registerPlugin(setDef.id, PluginType.EQUIPMENT_SET, setDef);
+    
+    const result = pluginManager.getEquipmentSet('SET_WIND');
+    expect(result).toEqual(setDef);
+    
+    const allSets = pluginManager.getAllEquipmentSets();
+    expect(allSets.length).toBe(1);
+    expect(allSets[0].id).toBe('SET_WIND');
+  });
+
+  it('should unload equipment set plugin correctly', () => {
+    const setDef: EquipmentSetDefinition = {
+      id: 'SET_FIRE',
+      name: 'Fire Set'
+    };
+    
+    pluginManager.registerPlugin(setDef.id, PluginType.EQUIPMENT_SET, setDef);
+    expect(pluginManager.getEquipmentSet('SET_FIRE')).toBeDefined();
+    
+    pluginManager.unloadPlugin('SET_FIRE');
+    expect(pluginManager.getEquipmentSet('SET_FIRE')).toBeUndefined();
   });
 });
