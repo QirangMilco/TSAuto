@@ -14,6 +14,7 @@ export class DamageCalculator {
    * @param attacker 攻击者
    * @param defender 防御者
    * @param multiplier 伤害系数
+   * @param baseStat 基础属性类型（默认攻击力）
    * @returns 最终伤害值
    */
   public calculateDamage(
@@ -28,17 +29,23 @@ export class DamageCalculator {
     criticalDamage: number;
     defenseReduction: number;
   } {
-    // 计算基础攻击力
-    const baseAttack = this.calculateBaseStat(attacker, baseStat);
+    // 根据阴阳师伤害公式：
+    // 总伤害 = (基础属性 × (1 + 属性增减) + 属性固定加成)
+    //        × 暴击伤害
+    //        × (1 + 伤害增减 + 承受伤害增减)
+    //        × (300 / (300 + (1 - 无视防御) × (敌方防御 - 忽略防御) × (1 + 防御增减)))
     
-    // 计算攻击增益
-    const attackBonus = this.calculateStatBonus(attacker, baseStat);
+    // 计算基础属性值
+    const baseValue = this.calculateBaseStat(attacker, baseStat);
     
-    // 计算有效攻击
-    const effectiveAttack = baseAttack * (1 + attackBonus);
+    // 计算属性百分比加成
+    const percentBonus = this.calculateStatBonus(attacker, baseStat);
+
+    // 计算有效属性值：基础属性 × (1 + 属性百分比加成)
+    const effectiveValue = baseValue * (1 + percentBonus);
     
     // 计算基础伤害
-    let rawDamage = effectiveAttack * multiplier;
+    let rawDamage = effectiveValue * multiplier;
     
     // 检查暴击
     const isCritical = this.checkCritical(attacker);
@@ -50,6 +57,14 @@ export class DamageCalculator {
       rawDamage *= critMultiplier;
       criticalDamage = rawDamage;
     }
+    
+    // 计算伤害增减和承受伤害增减
+    const damageBonus = attacker.currentStats.DMG_BONUS || 0;
+    const damageTakenBonus = defender.currentStats.DMG_TAKEN_BONUS || 0;
+    const damageModifier = 1 + (damageBonus / 100) + (damageTakenBonus / 100);
+    
+    // 应用伤害增减
+    rawDamage *= damageModifier;
     
     // 计算防御减伤
     const effectiveDefense = this.calculateEffectiveDefense(attacker, defender);
@@ -196,21 +211,9 @@ export class DamageCalculator {
    * 计算属性增益
    */
   public calculateStatBonus(character: CharacterInstance, statType: StatType): number {
-    // 根据不同属性类型获取对应的百分比加成
-    let statPercent = 0;
-    
-    switch (statType) {
-      case StatType.ATK:
-        statPercent = character.currentStats.ATK_P || 0;
-        break;
-      case StatType.DEF:
-        statPercent = character.currentStats.DEF_P || 0;
-        break;
-      case StatType.HP:
-        statPercent = character.currentStats.HP_P || 0;
-        break;
-      // 可以根据需要添加更多属性类型
-    }
+    // 动态获取对应的百分比加成属性
+    const percentStat = `${statType}_P` as StatType;
+    const statPercent = character.currentStats[percentStat] || 0;
     
     return statPercent / 100; // 转换为小数
   }

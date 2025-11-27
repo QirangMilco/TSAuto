@@ -3,7 +3,7 @@ import type { EquipmentDefinition } from '../types/definitions';
 import { RandomService } from './RandomService';
 import { EQUIPMENT_SETS } from '../config/equipmentSets';
 import { EQUIPMENT_CONFIG } from '../config/equipments';
-import { GameData } from '../GameData'; // 假设可以通过单例访问全局数据，或者改为注入
+// 移除 GameData 依赖，改为通过参数注入或使用配置文件
 
 
 /**
@@ -181,8 +181,8 @@ export class EquipmentService {
 
         // 计算套装加成
         for (const [setId, count] of Object.entries(setCounts)) {
-            // ✨ 从插件系统获取套装定义
-            const setDef = GameData.getEquipmentSet(setId);
+            // 从配置文件获取套装定义
+            const setDef = EQUIPMENT_SETS[setId];
 
             if (!setDef) {
                 console.warn(`Equipment Set definition not found: ${setId}`);

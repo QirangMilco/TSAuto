@@ -59,14 +59,38 @@ export class TurnManager {
     // 先更新全场一速
     this.recalculateGlobalSpeed(characters);
     
+    // 计算每个角色到达终点所需的时间
+    const timeToFinish: Map<CharacterInstance, number> = new Map();
+    let minTime = Infinity;
+    
     for (const character of characters) {
       if (character.isDead) continue;
       
       // 计算实际速度
       const effectiveSpeed = this.calculateEffectiveSpeed(character);
       
-      // 更新行动条位置
-      character.actionBarPosition += effectiveSpeed;
+      // 距离终点长度 = 全场一速 - 当前位置
+      const distanceToEnd = this.globalFastestSpeed - character.actionBarPosition;
+      
+      // 到达终点时间 = 距离终点长度 ÷ 速度
+      const time = distanceToEnd / effectiveSpeed;
+      timeToFinish.set(character, time);
+      
+      // 找到最短时间
+      if (time < minTime) {
+        minTime = time;
+      }
+    }
+    
+    // 更新所有角色的行动条位置
+    for (const character of characters) {
+      if (character.isDead) continue;
+      
+      // 计算实际速度
+      const effectiveSpeed = this.calculateEffectiveSpeed(character);
+      
+      // 更新行动条位置 = 当前位置 + 速度 × 最短时间
+      character.actionBarPosition += effectiveSpeed * minTime;
       
       // 检查是否准备行动
       if (character.actionBarPosition >= this.globalFastestSpeed) {
@@ -74,9 +98,17 @@ export class TurnManager {
       }
     }
     
-    return readyCharacters.sort((a, b) => 
-      b.actionBarPosition - a.actionBarPosition // 速度快的先行动
-    );
+    return readyCharacters.sort((a, b) => {
+      // 先按行动条位置排序，位置高的先行动
+      const positionDiff = b.actionBarPosition - a.actionBarPosition;
+      if (positionDiff !== 0) {
+        return positionDiff;
+      }
+      
+      // 位置相同时，速度慢的己方优先（怪物例外）
+      // 这里简化处理，按速度从小到大排序
+      return a.currentStats.SPD - b.currentStats.SPD;
+    });
   }
   
   /**

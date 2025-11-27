@@ -43,12 +43,23 @@ export class BattleEngine {
       resourceManager: {
         currentResource: 4,
         maxResource: 8,
-        advance: (turns = 1) => {
-          // 每回合增加25点资源
-          this.battleState.resourceManager.currentResource = Math.min(
-            this.battleState.resourceManager.maxResource,
-            this.battleState.resourceManager.currentResource + turns
-          );
+        resourceBar: 0, // 鬼火条进度，0-5
+        advance: (turns = 1, turnType: TurnType = TurnType.NORMAL) => {
+          // 只有真回合才推进鬼火条
+          if (turnType === TurnType.NORMAL) {
+            // 推进鬼火条
+            this.battleState.resourceManager.resourceBar += 1;
+            
+            // 鬼火条满5格时，回复1点鬼火
+            if (this.battleState.resourceManager.resourceBar >= 5) {
+              this.battleState.resourceManager.currentResource = Math.min(
+                this.battleState.resourceManager.maxResource,
+                this.battleState.resourceManager.currentResource + 1
+              );
+              // 重置鬼火条
+              this.battleState.resourceManager.resourceBar = 0;
+            }
+          }
         },
         consume: (amount: number) => {
           if (this.battleState.resourceManager.currentResource >= amount) {
@@ -126,6 +137,9 @@ export class BattleEngine {
         // 处理该角色的行动
         await this.processCharacterTurn(actingCharacter);
 
+        // 触发御魂效果（回合结束时）
+        this.triggerSoulEffects(actingCharacter, BattleEventType.ON_TURN_END);
+        
         // 触发回合结束事件
         this.triggerEvent(BattleEventType.ON_TURN_END, {
           characterId: actingCharacter.instanceId,
@@ -135,8 +149,8 @@ export class BattleEngine {
         // 重置行动条
         this.turnManager.resetActionBar(actingCharacter);
 
-        // 更新资源
-        this.battleState.resourceManager.advance();
+        // 更新资源（默认是真回合）
+        this.battleState.resourceManager.advance(1, TurnType.NORMAL);
 
         // 检查战斗结果
         this.checkBattleResult();
@@ -340,6 +354,50 @@ export class BattleEngine {
     });
     // 移除过期状态
     character.statuses = character.statuses.filter(s => s.remainingTurns > 0);
+  }
+
+  /**
+   * 触发御魂效果
+   * @param character 角色实例
+   * @param eventType 事件类型
+   */
+  private triggerSoulEffects(character: CharacterInstance, eventType: BattleEventType): void {
+    // 简化实现：根据角色装备触发相应的御魂效果
+    // 实际应该根据装备的setId和eventType触发不同的效果
+    
+    // 获取角色的装备
+    const equipmentSetIds = character.equipment.map(equipId => {
+      // 这里需要从装备实例ID获取装备定义，实际应该有装备管理系统
+      // 简化处理，直接返回默认值
+      return "DEFAULT_SET";
+    });
+    
+    // 统计套装数量
+    const setCounts: Map<string, number> = new Map();
+    for (const setId of equipmentSetIds) {
+      setCounts.set(setId, (setCounts.get(setId) || 0) + 1);
+    }
+    
+    // 触发套装效果
+    for (const [setId, count] of setCounts.entries()) {
+      // 根据套装ID和数量触发相应的效果
+      // 这里简化处理，实际应该从配置或插件系统获取套装效果
+      console.log(`Triggering soul effect for set ${setId} with count ${count} on event ${eventType}`);
+      
+      // 示例：4件套效果
+      if (count >= 4) {
+        // 根据eventType触发不同的效果
+        switch (eventType) {
+          case BattleEventType.ON_TURN_END:
+            // 示例：狂骨效果，根据当前鬼火增加伤害
+            break;
+          case BattleEventType.ON_DAMAGE_DEALT:
+            // 示例：心眼效果，目标生命值低时增加伤害
+            break;
+          // 其他事件类型...
+        }
+      }
+    }
   }
 
   /**
