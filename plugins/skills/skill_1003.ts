@@ -1,7 +1,7 @@
 /**
  * 风卷残云 - 终极技能插件
  */
-import { EffectType, TargetType, ResourceType } from '../../src/core/types/definitions';
+import { EffectType, TargetType, ResourceType, StatType } from '../../src/core/types/definitions';
 
 export default {
   id: "SKILL_1003",
@@ -16,7 +16,8 @@ export default {
     {
       type: EffectType.DAMAGE,
       target: TargetType.ALL_ENEMIES,
-      damageMultiplier: 1.5 // 对所有敌人造成150%攻击力伤害
+      damageMultiplier: 1.5, // 对所有敌人造成150%攻击力伤害
+      baseDamageStat: StatType.ATK
     },
     {
       type: EffectType.MODIFY_ACTION_BAR,
