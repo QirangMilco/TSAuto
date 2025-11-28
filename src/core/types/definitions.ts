@@ -210,8 +210,8 @@ export interface EquipmentSetDefinition {
 export interface EquipmentDefinition {
 	id: string; // 唯一标识，如 "EQUIP_2001"
 	name: string; // 装备名称
-	setId: string; // 套装ID
-	slot: 1 | 2 | 3 | 4 | 5 | 6; // 装备位
+	setId: string; // 装备位
+	slot: number; // 装备位，支持自定义数量
 
 	// 基础属性
 	baseStats?: Partial<Record<StatType, number>>;

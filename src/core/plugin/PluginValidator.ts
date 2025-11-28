@@ -135,9 +135,8 @@ export class PluginValidator {
     if (!equipment.name || typeof equipment.name !== 'string') return false;
     if (!equipment.setId || typeof equipment.setId !== 'string') return false;
 
-    // 装备位验证
-    const validSlots = [1, 2, 3, 4, 5, 6];
-    if (!validSlots.includes(equipment.slot)) return false;
+    // 装备位验证 - 支持自定义数量，只需验证为正数
+		if (typeof equipment.slot !== 'number' || equipment.slot < 1) return false;
 
     // 基础属性验证
     if (equipment.baseStats) {

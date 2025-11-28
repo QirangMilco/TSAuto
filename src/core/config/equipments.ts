@@ -15,6 +15,9 @@ interface StatMeta {
  * 模组制作者可以通过修改此文件调整御魂数值模型
  */
 export const EQUIPMENT_CONFIG = {
+  // 装备槽数量配置
+  SLOT_COUNT: 6, // 默认6个装备槽，模组可以修改此值
+  
   // 属性元数据表 (整合了成长、副属性范围、权重)
   STATS: {
     [StatType.ATK_P]:        { base: 10, step: 3,   subRange: [2.4, 3.0],   weight: 30 },
@@ -33,12 +36,13 @@ export const EQUIPMENT_CONFIG = {
   } as Record<StatType, StatMeta>,
 
   // 主属性分布规则 (Key: 槽位, Value: 可能的属性)
+  // 模组可以扩展或修改此配置，添加新的槽位和对应的主属性
   SLOT_MAIN_STATS: {
     1: [StatType.ATK],
-    3: [StatType.DEF],
-    5: [StatType.HP],
     2: [StatType.ATK_P, StatType.HP_P, StatType.DEF_P, StatType.SPD],
+    3: [StatType.DEF],
     4: [StatType.ATK_P, StatType.HP_P, StatType.DEF_P, StatType.EFFECT_HIT, StatType.EFFECT_RESIST],
+    5: [StatType.HP],
     6: [StatType.ATK_P, StatType.HP_P, StatType.DEF_P, StatType.CRIT, StatType.CRIT_DMG]
   } as Record<number, StatType[]>
 };
