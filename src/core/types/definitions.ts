@@ -86,6 +86,72 @@ export enum ResourceType {
 	BATTLE_RESOURCE = "BATTLE_RESOURCE"  // 战斗资源类型
 }
 
+// ==================== 抽卡系统 ====================
+
+/**
+ * 稀有度类型（字符串类型，支持动态配置）
+ */
+export type Rarity = string;
+
+/**
+ * 抽卡配置
+ */
+export interface GachaConfig {
+	/** 稀有度配置 */
+	rarities: {
+		/** 稀有度类型 */
+		type: Rarity;
+		/** 显示名称 */
+		name: string;
+		/** 抽取概率（百分比） */
+		probability: number;
+		/** 稀有度等级（用于排序和保底逻辑，数值越高稀有度越高） */
+		rank: number;
+	}[];
+	
+	/** 保底配置 */
+	pity?: {
+		/** 保底触发次数 */
+		threshold: number;
+		/** 保底稀有度 */
+		guaranteedRarity: Rarity;
+		/** 触发保底的稀有度等级阈值（可选，低于该等级的抽卡会累积保底计数） */
+		rarityRankThreshold?: number;
+	};
+	
+	/** 角色池配置 */
+	characterPool: {
+		/** 角色ID */
+		characterId: string;
+		/** 稀有度 */
+		rarity: Rarity;
+	}[];
+}
+
+/**
+ * 抽卡结果
+ */
+export interface GachaResult {
+	/** 抽取的角色ID */
+	characterId: string;
+	/** 角色名称 */
+	characterName: string;
+	/** 稀有度 */
+	rarity: Rarity;
+	/** 是否为保底 */
+	isPity: boolean;
+}
+
+/**
+ * 抽卡历史记录
+ */
+export interface GachaHistory {
+	/** 抽卡结果列表 */
+	results: GachaResult[];
+	/** 当前累计抽卡次数（用于计算保底） */
+	currentPulls: number;
+}
+
 // ==================== 核心接口 ====================
 
 /**
