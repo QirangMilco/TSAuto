@@ -14,7 +14,7 @@ export type GrowthTable = Record<number, GrowthCoefficients>;
 
 /**
  * 默认成长点对照表
- * 数据来源：式神通用全等级属性成长点对照表 (image_2ef0dc.png)
+ * 数据来源：仙神通用全等级属性成长点对照表 (image_2ef0dc.png)
  * 注意：部分等级(如20->21)之间数值的大幅跳跃通常代表了升星带来的属性提升
  */
 export const DEFAULT_GROWTH_TABLE: GrowthTable = {

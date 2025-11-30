@@ -20,7 +20,7 @@ export interface TerminologyConfig {
   NEW_TURN_NAME: string;         // 新回合名称（如"新回合"）
   
   // 角色相关
-  CHARACTER_NAME: string;        // 角色名称（如"式神"）
+  CHARACTER_NAME: string;        // 角色名称（如"仙神"）
   STATUS_NAME: string;           // 状态名称（如"状态"）
   BUFF_NAME: string;             // 增益名称（如"增益"）
   DEBUFF_NAME: string;           // 减益名称（如"减益"）
@@ -50,9 +50,9 @@ export const DEFAULT_TERMINOLOGY: TerminologyConfig = {
   RESOURCE_BAR_NAME: "鬼火条",
   
   // 装备系统
-  EQUIPMENT_NAME: "御魂",
-  EQUIPMENT_SET_NAME: "御魂套装",
-  EQUIPMENT_SLOT_NAME: "御魂位置",
+  EQUIPMENT_NAME: "灵玉",
+  EQUIPMENT_SET_NAME: "灵玉套装",
+  EQUIPMENT_SLOT_NAME: "灵玉属性",
   
   // 战斗相关
   ACTION_BAR_NAME: "行动条",
@@ -61,7 +61,7 @@ export const DEFAULT_TERMINOLOGY: TerminologyConfig = {
   NEW_TURN_NAME: "新回合",
   
   // 角色相关
-  CHARACTER_NAME: "式神",
+  CHARACTER_NAME: "仙神",
   STATUS_NAME: "状态",
   BUFF_NAME: "增益",
   DEBUFF_NAME: "减益",

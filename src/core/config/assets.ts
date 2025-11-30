@@ -13,6 +13,45 @@ export interface AssetsConfig {
     fallbackGradient: string;
   };
   
+  // 装饰元素
+  decorations: {
+    flowersClouds: string; // 花朵云朵装饰
+    flower: string; // 花朵装饰
+    bow: string; // 蝴蝶结装饰
+    flame: string; // 火焰装饰
+  };
+  
+  // 角色相关
+  characters: {
+    portrait: string; // 角色立绘
+    avatar: string; // 角色头像
+  };
+  
+  // 资源图标
+  resources: {
+    lowGrade: string; // 下品灵石
+    middleGrade: string; // 中品灵石
+    highGrade: string; // 上品灵石
+  };
+  
+  // 功能按钮图标
+  buttons: {
+    settings: string; // 设置按钮
+    wudao: string; // 悟道台按钮
+    xianshen: string; // 仙神录按钮
+    storage: string; // 储物袋按钮
+    tianji: string; // 天机阁按钮
+    trial: string; // 试炼按钮
+    encyclopedia: string; // 图鉴按钮
+    market: string; // 坊市按钮
+    achievements: string; // 成就按钮
+  };
+  
+  // 页面标题
+  titles: {
+    courtyard: string; // 宗门庭院标题
+  };
+  
   // UI 通用素材
   ui: {
     cardBack: string; // 卡牌/角色背面
@@ -37,6 +76,35 @@ export const DEFAULT_ASSETS: AssetsConfig = {
     home: '/assets/bg_home.jpg',
     loading: '/assets/bg_loading.jpg',
     fallbackGradient: 'linear-gradient(to bottom, #111827, #1f2937)' 
+  },
+  decorations: {
+    flowersClouds: '/assets/images/decorations/flowers-clouds.png',
+    flower: '/assets/images/decorations/flower.png',
+    bow: '/assets/images/decorations/bow.png',
+    flame: '/assets/images/decorations/flame.png'
+  },
+  characters: {
+    portrait: '/assets/images/characters/portrait.png',
+    avatar: '/src/assets/images/characters/201.jpg'
+  },
+  resources: {
+    lowGrade: '/assets/images/resources/low-grade.png',
+    middleGrade: '/assets/images/resources/middle-grade.png',
+    highGrade: '/assets/images/resources/high-grade.png'
+  },
+  buttons: {
+    settings: '/assets/images/icons/settings.png',
+    wudao: '/assets/images/icons/wudao.png',
+    xianshen: '/assets/images/icons/xianshen.png',
+    storage: '/assets/images/icons/storage.png',
+    tianji: '/assets/images/icons/tianji.png',
+    trial: '/assets/images/icons/trial.png',
+    encyclopedia: '/assets/images/icons/encyclopedia.png',
+    market: '/assets/images/icons/market.png',
+    achievements: '/assets/images/icons/achievements.png'
+  },
+  titles: {
+    courtyard: '/assets/images/titles/courtyard.png'
   },
   ui: {
     cardBack: '/assets/ui/card_back.png',
