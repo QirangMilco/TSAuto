@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node scripts/generate-static-plugins.js && tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "tw:init": "tailwindcss init -p"
+    "tw:init": "tailwindcss init -p",
+    "generate-plugins": "node scripts/generate-static-plugins.js"
   },
   "dependencies": {
     "react": "^18.2.0",

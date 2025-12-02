@@ -5,6 +5,29 @@ import { PluginLoader } from './PluginLoader';
 import { PluginValidator } from './PluginValidator';
 
 /**
+ * 插件管理器配置选项
+ */
+export interface PluginManagerOptions {
+  /**
+   * 插件加载模式
+   * - dynamic: 动态加载（开发环境）
+   * - static: 静态加载（生产环境，使用预定义插件）
+   * - resource: 资源目录加载（生产环境，从资源目录读取）
+   */
+  mode?: 'dynamic' | 'static' | 'resource';
+  
+  /**
+   * 静态插件映射，用于static模式
+   */
+  staticPlugins?: Record<string, any>;
+  
+  /**
+   * 资源基础路径，用于resource模式
+   */
+  resourceBasePath?: string;
+}
+
+/**
  * 插件管理器
  * 负责插件系统的整体管理和协调
  */
@@ -21,8 +44,16 @@ export class PluginManager implements GameDataInterface {
   private statuses: Map<string, StatusDefinition> = new Map();
   private equipmentSets: Map<string, EquipmentSetDefinition> = new Map();
   
-  constructor() {
-    this.pluginLoader = new PluginLoader();
+  /**
+   * 构造函数
+   * @param options 配置选项
+   */
+  constructor(options?: PluginManagerOptions) {
+    this.pluginLoader = new PluginLoader({
+      mode: options?.mode,
+      staticPlugins: options?.staticPlugins,
+      resourceBasePath: options?.resourceBasePath
+    });
     this.pluginValidator = new PluginValidator();
   }
   
@@ -148,10 +179,32 @@ export class PluginManager implements GameDataInterface {
   
   /**
    * 动态加载单个插件
+   * @param path 插件路径
+   * @param pluginData 可选的插件数据，用于直接提供插件内容
    */
-  public async loadPlugin(path: string): Promise<{ success: boolean; id?: string; error?: string }> {
+  public async loadPlugin(path: string, pluginData?: any): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
-      const plugin = await this.pluginLoader.loadPlugin(path);
+      let plugin;
+      
+      if (pluginData) {
+        // 直接使用提供的插件数据
+        const type = this.determinePluginType(path);
+        const id = pluginData.id || this.extractIdFromPath(path);
+        
+        const metadata = {
+          id,
+          type,
+          path,
+          version: pluginData.metadata?.version || '1.0.0',
+          author: pluginData.metadata?.author || 'Unknown',
+          loadTime: Date.now()
+        };
+        
+        plugin = { id, type, content: pluginData, metadata };
+      } else {
+        // 通过路径加载插件
+        plugin = await this.pluginLoader.loadPlugin(path);
+      }
       
       if (!plugin) {
         return { success: false, error: 'Failed to load plugin' };
@@ -173,6 +226,173 @@ export class PluginManager implements GameDataInterface {
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
+  }
+  
+  /**
+   * 批量导入插件
+   * @param pluginPaths 插件路径列表
+   */
+  public async importPlugins(pluginPaths: string[]): Promise<{
+    success: boolean;
+    imported: string[];
+    failed: { path: string; error: string }[];
+    total: number;
+  }> {
+    const imported: string[] = [];
+    const failed: { path: string; error: string }[] = [];
+    const total = pluginPaths.length;
+    
+    for (const path of pluginPaths) {
+      const result = await this.loadPlugin(path);
+      if (result.success && result.id) {
+        imported.push(result.id);
+      } else {
+        failed.push({ path, error: result.error || 'Unknown error' });
+      }
+    }
+    
+    return {
+      success: failed.length === 0,
+      imported,
+      failed,
+      total
+    };
+  }
+  
+  /**
+   * 从数据导入单个插件
+   * @param pluginData 插件数据对象
+   * @param type 插件类型
+   * @param customId 可选的自定义插件ID
+   */
+  public async importPluginFromData(
+    pluginData: any,
+    type: PluginType,
+    customId?: string
+  ): Promise<{ success: boolean; id?: string; error?: string }> {
+    try {
+      // 验证插件数据
+      if (!pluginData || typeof pluginData !== 'object') {
+        return { success: false, error: 'Invalid plugin data' };
+      }
+      
+      // 生成插件ID
+      const id = customId || pluginData.id || `plugin_${Date.now()}`;
+      
+      // 创建插件元数据
+      const metadata: PluginMetadata = {
+        id,
+        type,
+        path: `dynamic_${id}`,
+        version: pluginData.metadata?.version || '1.0.0',
+        author: pluginData.metadata?.author || 'Unknown',
+        loadTime: Date.now()
+      };
+      
+      // 验证插件
+      if (!this.pluginValidator.validatePlugin(id, type, pluginData)) {
+        return { success: false, error: 'Invalid plugin format' };
+      }
+      
+      // 注册插件
+      this.pluginRegistry.set(id, pluginData);
+      this.metadataRegistry.set(id, metadata);
+      this.registerPluginByType(id, type, pluginData);
+      
+      return { success: true, id };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  }
+  
+  /**
+   * 批量从数据导入插件
+   * @param pluginsData 插件数据数组
+   */
+  public async importPluginsFromData(
+    pluginsData: { data: any; type: PluginType; id?: string }[]
+  ): Promise<{
+    success: boolean;
+    imported: string[];
+    failed: { index: number; error: string }[];
+    total: number;
+  }> {
+    const imported: string[] = [];
+    const failed: { index: number; error: string }[] = [];
+    const total = pluginsData.length;
+    
+    for (let i = 0; i < pluginsData.length; i++) {
+      const { data, type, id: customId } = pluginsData[i];
+      const result = await this.importPluginFromData(data, type, customId);
+      
+      if (result.success && result.id) {
+        imported.push(result.id);
+      } else {
+        failed.push({ index: i, error: result.error || 'Unknown error' });
+      }
+    }
+    
+    return {
+      success: failed.length === 0,
+      imported,
+      failed,
+      total
+    };
+  }
+  
+  /**
+   * 获取已加载的插件统计信息
+   */
+  public getPluginStats(): {
+    total: number;
+    byType: Record<PluginType, number>;
+    enabled: number;
+  } {
+    const stats = {
+      total: this.metadataRegistry.size,
+      byType: {
+        [PluginType.CHARACTER]: 0,
+        [PluginType.SKILL]: 0,
+        [PluginType.EQUIPMENT]: 0,
+        [PluginType.STATUS]: 0,
+        [PluginType.EQUIPMENT_SET]: 0,
+        [PluginType.UNKNOWN]: 0
+      },
+      enabled: this.metadataRegistry.size // 目前所有加载的插件都是启用状态
+    };
+    
+    // 统计各类型插件数量
+    for (const metadata of this.metadataRegistry.values()) {
+      stats.byType[metadata.type]++;
+    }
+    
+    return stats;
+  }
+  
+  /**
+   * 从路径中提取插件ID（内部辅助方法）
+   */
+  private extractIdFromPath(path: string): string {
+    const fileName = path.split('/').pop() || 'unknown';
+    return fileName.replace(/\.(ts|js|json)$/, '');
+  }
+  
+  /**
+   * 确定插件类型（内部辅助方法）
+   */
+  private determinePluginType(path: string): PluginType {
+    if (path.includes('/characters/') || path.includes('character_')) {
+      return PluginType.CHARACTER;
+    } else if (path.includes('/skills/') || path.includes('skill_')) {
+      return PluginType.SKILL;
+    } else if (path.includes('/equipment/') || path.includes('equip_')) {
+      return PluginType.EQUIPMENT;
+    } else if (path.includes('/statuses/') || path.includes('status_')) {
+      return PluginType.STATUS;
+    } else if (path.includes('/equipment-sets/') || path.includes('set_')) {
+      return PluginType.EQUIPMENT_SET;
+    }
+    return PluginType.UNKNOWN;
   }
   
   /**

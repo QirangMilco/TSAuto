@@ -6,10 +6,11 @@ interface SmartImageProps {
   height: number;
   alt: string;
   imageKey: string;
+  className?: string;
 }
 
 // 智能图片组件，支持从配置中读取图片路径，加载失败时显示占位图
-const SmartImage: React.FC<SmartImageProps> = ({ width, height, alt, imageKey }) => {
+const SmartImage: React.FC<SmartImageProps> = ({ width, height, alt, imageKey, className }) => {
   const [imageLoaded, setImageLoaded] = useState(true);
   const [imageError, setImageError] = useState(false);
 
@@ -105,7 +106,7 @@ const SmartImage: React.FC<SmartImageProps> = ({ width, height, alt, imageKey })
           height={height}
           onError={handleImageError}
           onLoad={handleImageLoad}
-          className="object-contain"
+          className={`object-contain ${className || ''}`}
         />
       )}
       

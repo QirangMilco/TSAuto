@@ -130,7 +130,7 @@ export const BattleScene: React.FC = () => {
 
         {/* 敌方阵营 (PC: 左侧, Mobile: 上方) */}
         <div className="relative z-10 flex md:flex-col flex-row flex-wrap justify-center gap-4 w-full md:w-auto md:h-full md:justify-center p-4">
-          {battleState.enemies.map((enemy) => (
+          {battleState.enemies.map((enemy: CharacterInstance) => (
             <CharacterAvatar
               key={enemy.instanceId}
               character={enemy}
@@ -152,7 +152,7 @@ export const BattleScene: React.FC = () => {
 
         {/* 我方阵营 (PC: 右侧, Mobile: 下方) */}
         <div className="relative z-10 flex md:flex-col flex-row flex-wrap justify-center gap-4 w-full md:w-auto md:h-full md:justify-center p-4">
-          {battleState.players.map((player) => (
+          {battleState.players.map((player: CharacterInstance) => (
             <CharacterAvatar
               key={player.instanceId}
               character={player}

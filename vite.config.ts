@@ -12,5 +12,19 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom'
+  },
+  // 配置插件目录的处理
+  optimizeDeps: {
+    include: ['/plugins/**/*.ts']
+  },
+  build: {
+    // 确保插件文件被正确打包
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html')
+      },
+      // 允许打包插件目录
+      plugins: []
+    }
   }
 })
