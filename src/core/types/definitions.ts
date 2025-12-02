@@ -3,6 +3,11 @@
  * ⚠️ 法律文件：禁止修改此文件中的接口定义
  */
 
+import type { CharacterInstance, BattleState } from './battle';
+
+// 前向声明，避免循环引用
+declare class BattleEngine {};
+
 // ==================== 套装效果接口 ====================
 
 /**
@@ -10,22 +15,22 @@
  * 包含效果触发时的所有必要信息
  */
 export interface SetEffectContext {
-    character: any;         // 触发效果的角色
-    target?: any;           // 目标角色（如果适用）
-    battleState: any;       // 当前战斗状态
-    eventType: BattleEventType; // 事件类型
-    damage?: number;        // 当前伤害值（如果是伤害相关事件）
-    skillId?: string;       // 使用的技能ID（如果是技能相关事件）
-    battleEngine: any;      // 战斗引擎实例，用于调用其他方法
-    isCrit?: boolean;       // 是否暴击（如果是伤害相关事件）
-    rawDamage?: number;     // 原始伤害值（如果是伤害相关事件）
+    character: CharacterInstance;         // 触发效果的角色
+    target?: CharacterInstance;           // 目标角色（如果适用）
+    battleState: BattleState;             // 当前战斗状态
+    eventType: BattleEventType;           // 事件类型
+    damage?: number;                      // 当前伤害值（如果是伤害相关事件）
+    skillId?: string;                     // 使用的技能ID（如果是技能相关事件）
+    battleEngine: BattleEngine;           // 战斗引擎实例，用于调用其他方法
+    isCrit?: boolean;                     // 是否暴击（如果是伤害相关事件）
+    rawDamage?: number;                   // 原始伤害值（如果是伤害相关事件）
 }
 
 /**
  * 套装效果函数接口
  * 定义了套装效果的执行逻辑
  */
-export type SetEffectFunction = (context: SetEffectContext) => any;
+export type SetEffectFunction = (context: SetEffectContext) => EffectResult;
 
 // ==================== 基础枚举 ====================
 
@@ -109,6 +114,38 @@ export enum BuffType {
 
 export enum ResourceType {
 	BATTLE_RESOURCE = "BATTLE_RESOURCE"  // 战斗资源类型
+}
+
+// ==================== 效果返回类型 ====================
+
+/**
+ * 技能机制执行结果
+ */
+export interface MechanicResult {
+    assist?: {
+        character: CharacterInstance;
+        skillId: string;
+    };
+    multiHit?: number;
+    reflectDamage?: number;
+    lifeSteal?: number;
+    spreadStatus?: any;
+    damageMultiplier?: number;
+    extraDamage?: number;
+    ignoreDefense?: boolean;
+    statBoosts?: Partial<Record<StatType, number>>;
+    message?: string;
+}
+
+/**
+ * 套装效果执行结果
+ */
+export interface EffectResult {
+    damageMultiplier?: number;
+    extraDamage?: number;
+    ignoreDefense?: boolean;
+    statBoosts?: Partial<Record<StatType, number>>;
+    message?: string;
 }
 
 // ==================== 抽卡系统 ====================
@@ -252,22 +289,22 @@ export interface CharacterDefinition {
  * 包含技能机制触发时的所有必要信息
  */
 export interface SkillMechanicContext {
-    caster: any;          // 施法者
-    targets: any[];       // 目标列表
-    battleState: any;     // 当前战斗状态
-    battleEngine: any;    // 战斗引擎实例
-    skill: SkillDefinition; // 技能定义
-    skillId: string;      // 技能ID
-    eventType?: BattleEventType; // 事件类型（如果是被动触发）
-    damageResult?: any;   // 伤害结果（如果是伤害相关事件）
-    healResult?: any;     // 治疗结果（如果是治疗相关事件）
+    caster: CharacterInstance;          // 施法者
+    targets: CharacterInstance[];       // 目标列表
+    battleState: BattleState;           // 当前战斗状态
+    battleEngine: BattleEngine;         // 战斗引擎实例
+    skill: SkillDefinition;             // 技能定义
+    skillId: string;                    // 技能ID
+    eventType?: BattleEventType;        // 事件类型（如果是被动触发）
+    damageResult?: { damage: number; isCrit: boolean };   // 伤害结果（如果是伤害相关事件）
+    healResult?: { healAmount: number };                  // 治疗结果（如果是治疗相关事件）
 }
 
 /**
  * 技能机制函数接口
  * 定义了技能机制的执行逻辑
  */
-export type SkillMechanicFunction = (context: SkillMechanicContext) => any;
+export type SkillMechanicFunction = (context: SkillMechanicContext) => MechanicResult;
 
 /**
  * 技能定义 (插件接口)

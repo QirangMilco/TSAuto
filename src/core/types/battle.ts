@@ -1,4 +1,4 @@
-import type { StatType, BuffType } from './definitions';
+import type { StatType, BuffType, TurnType } from './definitions';
 
 /**
  * 战斗状态相关类型
@@ -80,7 +80,7 @@ export interface ResourceManager {
   maxResource: number;     // 最大资源量
   resourceBar: number;     // 鬼火条进度 (0-5)
   
-  advance(turns?: number, turnType?: string): void; // 推进资源条
+  advance(turns?: number, turnType?: TurnType): void; // 推进资源条
   consume(amount: number): boolean; // 消耗资源
 }
 

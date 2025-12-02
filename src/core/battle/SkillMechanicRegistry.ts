@@ -1,4 +1,4 @@
-import type { SkillMechanicFunction } from '../types/definitions';
+import type { SkillMechanicFunction, MechanicResult } from '../types/definitions';
 import { BattleEventType } from '../types/definitions';
 
 /**
@@ -44,12 +44,19 @@ export class SkillMechanicRegistry {
      * @param mechanicId 机制ID
      * @param context 机制上下文
      * @returns 机制执行结果
+     * @throws {Error} 如果机制ID不存在
      */
-    public executeMechanic(mechanicId: string, context: any): any {
+    public executeMechanic(mechanicId: string, context: any): MechanicResult | undefined {
         const mechanicFunction = this.getMechanic(mechanicId);
         if (mechanicFunction) {
-            return mechanicFunction(context);
+            try {
+                return mechanicFunction(context);
+            } catch (error) {
+                console.error(`执行技能机制 ${mechanicId} 时出错:`, error);
+                return undefined;
+            }
         }
+        console.warn(`未找到技能机制 ${mechanicId}`);
         return undefined;
     }
     
@@ -126,13 +133,13 @@ export const PRESET_SKILL_MECHANICS: Record<string, SkillMechanicFunction> = {
         // 将目标身上的状态扩散到其他敌人
         if (context.targets.length > 0) {
             const primaryTarget = context.targets[0];
-            const spreadableStatuses = primaryTarget.statuses.filter((s: any) => s.duration > 0);
+            const spreadableStatuses = primaryTarget.statuses.filter((s: any) => s.remainingTurns > 0);
             
             if (spreadableStatuses.length > 0) {
                 const statusToSpread = spreadableStatuses[Math.floor(Math.random() * spreadableStatuses.length)];
                 return {
                     spreadStatus: statusToSpread,
-                    message: `${context.caster.name}将${primaryTarget.name}身上的${statusToSpread.name}扩散到了其他敌人！`
+                    message: `${context.caster.name}将${primaryTarget.name}身上的状态扩散到了其他敌人！`
                 };
             }
         }

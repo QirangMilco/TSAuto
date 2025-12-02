@@ -1,4 +1,4 @@
-import type { SetEffectFunction } from '../types/definitions';
+import type { SetEffectFunction, EffectResult } from '../types/definitions';
 
 /**
  * 套装效果注册表
@@ -43,12 +43,19 @@ export class SetEffectRegistry {
      * @param effectId 效果ID
      * @param context 效果上下文
      * @returns 效果执行结果
+     * @throws {Error} 如果效果ID不存在
      */
-    public executeEffect(effectId: string, context: any): any {
+    public executeEffect(effectId: string, context: any): EffectResult | undefined {
         const effectFunction = this.getEffect(effectId);
         if (effectFunction) {
-            return effectFunction(context);
+            try {
+                return effectFunction(context);
+            } catch (error) {
+                console.error(`执行套装效果 ${effectId} 时出错:`, error);
+                return undefined;
+            }
         }
+        console.warn(`未找到套装效果 ${effectId}`);
         return undefined;
     }
     

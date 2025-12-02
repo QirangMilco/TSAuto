@@ -1,5 +1,5 @@
 import { BattleEventType, EffectType, TurnType, StatType, SetEffectContext, SkillMechanicContext } from '../types/definitions';
-import type { CharacterInstance, BattleState, BattleEvent, PlayerAction } from '../types/battle';
+import type { CharacterInstance, BattleState, BattleEvent, PlayerAction, ResourceManager } from '../types/battle';
 import type { GameDataInterface } from '../types/plugin';
 import type { SkillDefinition, Effect, StatusDefinition } from '../types/definitions';
 import { TurnManager } from './TurnManager';
@@ -37,41 +37,44 @@ export class BattleEngine {
    * 创建初始战斗状态
    */
   private createInitialBattleState(): BattleState {
+    // 创建资源管理器，避免直接引用this.battleState
+    const resourceManager: ResourceManager = {
+      currentResource: 4,
+      maxResource: 8,
+      resourceBar: 0, // 鬼火条进度，0-5
+      advance: (turns = 1, turnType: TurnType = TurnType.NORMAL) => {
+        // 只有真回合才推进鬼火条
+        if (turnType === TurnType.NORMAL) {
+          // 推进鬼火条
+          resourceManager.resourceBar += 1;
+          
+          // 鬼火条满5格时，回复1点鬼火
+          if (resourceManager.resourceBar >= 5) {
+            resourceManager.currentResource = Math.min(
+              resourceManager.maxResource,
+              resourceManager.currentResource + 1
+            );
+            // 重置鬼火条
+            resourceManager.resourceBar = 0;
+          }
+        }
+      },
+      consume: (amount: number) => {
+        if (resourceManager.currentResource >= amount) {
+          resourceManager.currentResource -= amount;
+          return true;
+        }
+        return false;
+      }
+    };
+
     return {
       battleId: `battle_${Date.now()}`,
       round: 1,
       players: [],
       enemies: [],
       activeCharacterId: null,
-      resourceManager: {
-        currentResource: 4,
-        maxResource: 8,
-        resourceBar: 0, // 鬼火条进度，0-5
-        advance: (turns = 1, turnType: TurnType = TurnType.NORMAL) => {
-          // 只有真回合才推进鬼火条
-          if (turnType === TurnType.NORMAL) {
-            // 推进鬼火条
-            this.battleState.resourceManager.resourceBar += 1;
-            
-            // 鬼火条满5格时，回复1点鬼火
-            if (this.battleState.resourceManager.resourceBar >= 5) {
-              this.battleState.resourceManager.currentResource = Math.min(
-                this.battleState.resourceManager.maxResource,
-                this.battleState.resourceManager.currentResource + 1
-              );
-              // 重置鬼火条
-              this.battleState.resourceManager.resourceBar = 0;
-            }
-          }
-        },
-        consume: (amount: number) => {
-          if (this.battleState.resourceManager.currentResource >= amount) {
-            this.battleState.resourceManager.currentResource -= amount;
-            return true;
-          }
-          return false;
-        }
-      },
+      resourceManager: resourceManager,
       result: "IN_PROGRESS"
     };
   }
