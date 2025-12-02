@@ -3,6 +3,7 @@ import type { EquipmentDefinition } from '../types/definitions';
 import { RandomService } from './RandomService';
 import { EQUIPMENT_SETS } from '../config/equipmentSets';
 import { EQUIPMENT_CONFIG } from '../config/equipments';
+import { FiveElementsService } from './FiveElementsService';
 // 移除 GameData 依赖，改为通过参数注入或使用配置文件
 
 
@@ -160,11 +161,11 @@ export class EquipmentService {
     }
 
     /**
-     * 计算总属性加成
-     * 汇总所有装备的主属性和副属性
+     * 计算基础属性加成（不包含五行加成）
+     * 汇总所有装备的主属性、副属性和套装加成
      * @param equips 装备列表
      */
-    public static calculateTotalStats(equips: EquipmentInstance[]): Record<StatType, number> {
+    public static calculateBaseStats(equips: EquipmentInstance[]): Record<StatType, number> {
         const totalStats: Record<string, number> = {};
         Object.values(StatType).forEach(s => totalStats[s] = 0);
 
@@ -179,7 +180,7 @@ export class EquipmentService {
             }
         }
 
-        // 计算套装加成
+        // 计算套装加成（支持任意件数）
         for (const [setId, count] of Object.entries(setCounts)) {
             // 从配置文件获取套装定义
             const setDef = EQUIPMENT_SETS[setId];
@@ -189,14 +190,19 @@ export class EquipmentService {
                 continue;
             }
 
-            // 2件套
-            if (count >= 2 && setDef.piece2) {
-                totalStats[setDef.piece2.stat] = (totalStats[setDef.piece2.stat] || 0) + setDef.piece2.value;
-            }
+            // 获取该套装所有可用的效果件数，并按从大到小排序
+            const availablePieces = Object.keys(setDef.effects)
+                .map(Number) // 转换为数字
+                .filter(piece => piece <= count) // 只保留已达到的件数
+                .sort((a, b) => b - a); // 从大到小排序
 
-            // 4件套 (属性类)
-            if (count >= 4 && setDef.piece4 && setDef.piece4.stat) {
-                totalStats[setDef.piece4.stat] = (totalStats[setDef.piece4.stat] || 0) + setDef.piece4.value!;
+            // 遍历所有已达到的效果件数，应用对应的效果
+            for (const piece of availablePieces) {
+                const effect = setDef.effects[piece];
+                if (effect && effect.stat !== undefined && effect.value !== undefined) {
+                    totalStats[effect.stat] = (totalStats[effect.stat] || 0) + effect.value;
+                }
+                // 特殊效果（非属性类）会在战斗引擎中处理，这里只处理属性类效果
             }
         }
 
@@ -206,6 +212,24 @@ export class EquipmentService {
         }
 
         return totalStats as Record<StatType, number>;
+    }
+
+    /**
+     * 计算总属性加成（包含五行加成）
+     * 汇总所有装备的主属性、副属性、套装加成和五行加成
+     * @param equips 装备列表
+     */
+    public static calculateTotalStats(equips: EquipmentInstance[]): Record<StatType, number> {
+        // 计算基础属性
+        const baseStats = this.calculateBaseStats(equips);
+        
+        // 计算五行效果
+        const fiveElementsResult = FiveElementsService.calculateFiveElements(equips);
+        
+        // 计算包含五行加成的最终属性
+        const finalStats = FiveElementsService.calculateTotalStatsWithElements(baseStats, fiveElementsResult);
+        
+        return finalStats as Record<StatType, number>;
     }
 
     /**
