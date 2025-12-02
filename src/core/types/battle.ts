@@ -10,6 +10,7 @@ import type { StatType, BuffType } from './definitions';
 export interface CharacterInstance {
   instanceId: string; // 实例ID (唯一)
   characterId: string; // 角色定义ID
+  name: string; // 角色名称
   
   // 当前面板属性 (计算后)
   currentStats: Record<StatType, number>;
@@ -29,6 +30,9 @@ export interface CharacterInstance {
   // 生命值
   maxHp: number;
   currentHp: number;
+  
+  // 技能列表
+  skills: string[]; // 技能ID列表
   
   // 方法
   takeDamage(damage: number): void;

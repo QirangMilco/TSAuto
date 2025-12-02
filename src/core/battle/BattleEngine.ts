@@ -1,9 +1,12 @@
-import { BattleEventType, EffectType, TurnType, StatType } from '../types/definitions';
+import { BattleEventType, EffectType, TurnType, StatType, SetEffectContext, SkillMechanicContext } from '../types/definitions';
 import type { CharacterInstance, BattleState, BattleEvent, PlayerAction } from '../types/battle';
 import type { GameDataInterface } from '../types/plugin';
 import type { SkillDefinition, Effect, StatusDefinition } from '../types/definitions';
 import { TurnManager } from './TurnManager';
 import { DamageCalculator } from './DamageCalculator';
+import { SetEffectRegistry } from './SetEffectRegistry';
+import { SkillMechanicRegistry } from './SkillMechanicRegistry';
+import { EQUIPMENT_SETS } from '../config/equipmentSets';
 
 /**
  * 战斗引擎
@@ -255,7 +258,34 @@ export class BattleEngine {
     // 施法前摇延迟
     await this.sleep(this.battleSpeed * 0.8);
 
-    // 2. 执行技能效果
+    // 2. 触发技能机制 (如果有)
+    const mechanicResults: any[] = [];
+    if (skill.mechanicId) {
+      const registry = SkillMechanicRegistry.getInstance();
+      const mechanicContext: SkillMechanicContext = {
+        caster,
+        targets: [target],
+        battleState: this.battleState,
+        battleEngine: this,
+        skill,
+        skillId
+      };
+      
+      const mechanicResult = registry.executeMechanic(skill.mechanicId, mechanicContext);
+      if (mechanicResult) {
+        mechanicResults.push(mechanicResult);
+        
+        // 处理机制结果
+        this.handleMechanicResult(mechanicResult, caster, [target], skill);
+        
+        // 如果有消息，打印日志
+        if (mechanicResult.message) {
+          console.log(mechanicResult.message);
+        }
+      }
+    }
+
+    // 3. 执行技能效果
     if (skill.activeEffects) {
       for (const effect of skill.activeEffects) {
         this.executeEffect(effect, caster, target);
@@ -264,8 +294,77 @@ export class BattleEngine {
       }
     }
     
+    // 4. 技能后处理：再次检查机制结果（如协战）
+    for (const mechanicResult of mechanicResults) {
+      if (mechanicResult.assist) {
+        // 处理协战
+        await this.handleAssistMechanic(mechanicResult.assist, caster);
+      }
+    }
+    
     // 技能后摇延迟
     await this.sleep(this.battleSpeed * 0.5);
+  }
+  
+  /**
+   * 处理技能机制结果
+   */
+  private handleMechanicResult(result: any, caster: CharacterInstance, targets: CharacterInstance[], skill: SkillDefinition): void {
+    // 处理多段伤害
+    if (result.multiHit && result.multiHit > 1) {
+      // 这里可以实现多段伤害逻辑
+      console.log(`${caster.name}的技能造成了${result.multiHit}段伤害`);
+    }
+    
+    // 处理生命偷取
+    if (result.lifeSteal && result.lifeSteal > 0) {
+      const newHp = Math.min(caster.maxHp, caster.currentHp + result.lifeSteal);
+      caster.currentHp = newHp;
+      console.log(`${caster.name}偷取了${result.lifeSteal}点生命值，当前生命值: ${newHp}/${caster.maxHp}`);
+    }
+    
+    // 处理伤害反弹
+    if (result.reflectDamage && result.reflectDamage > 0) {
+      // 这里可以实现伤害反弹逻辑
+      console.log(`${caster.name}反弹了${result.reflectDamage}点伤害`);
+    }
+    
+    // 处理状态扩散
+    if (result.spreadStatus) {
+      // 这里可以实现状态扩散逻辑
+      console.log(`${caster.name}扩散了${result.spreadStatus.name}状态`);
+    }
+    
+    // 处理伤害倍率
+    if (result.damageMultiplier) {
+      // 这里可以保存伤害倍率，用于后续伤害计算
+      console.log(`${caster.name}获得了${(result.damageMultiplier - 1) * 100}%的伤害提升`);
+    }
+  }
+  
+  /**
+   * 处理协战机制
+   */
+  private async handleAssistMechanic(assistData: any, caster: CharacterInstance): Promise<void> {
+    const { character, skillId } = assistData;
+    if (!character || !skillId) return;
+    
+    // 找到一个合适的目标
+    const targets = [...this.battleState.enemies].filter(e => !e.isDead);
+    if (targets.length === 0) return;
+    
+    const assistTarget = targets[Math.floor(Math.random() * targets.length)];
+    
+    // 触发协战攻击
+    await this.sleep(this.battleSpeed * 0.5);
+    
+    const skill = this.gameData.getSkill(skillId);
+    if (skill && skill.activeEffects) {
+      for (const effect of skill.activeEffects) {
+        this.executeEffect(effect, character, assistTarget);
+        await this.sleep(150);
+      }
+    }
   }
 
   /**
@@ -307,17 +406,75 @@ export class BattleEngine {
    * 应用伤害
    */
   private applyDamage(attacker: CharacterInstance, defender: CharacterInstance, multiplier: number, baseStat?: StatType): void {
-    const damageResult = this.damageCalculator.calculateDamage(attacker, defender, multiplier, baseStat);
-
-    // 应用伤害
-    defender.takeDamage(damageResult.damage);
+    let damageResult = this.damageCalculator.calculateDamage(attacker, defender, multiplier, baseStat);
+    let finalDamage = damageResult.damage;
+    
+    // 触发伤害相关的技能机制
+    const registry = SkillMechanicRegistry.getInstance();
+    const mechanicContext = {
+      caster: attacker,
+      targets: [defender],
+      battleState: this.battleState,
+      battleEngine: this,
+      skill: null as any, // 这里简化处理，实际应该传递技能信息
+      skillId: 'UNKNOWN',
+      damageResult
+    };
+    
+    // 检查攻击者是否有伤害相关的技能机制
+    // 这里简化处理，实际应该检查攻击者的技能列表
+    
+    // 触发伤害相关的套装效果
+    const damageContext = {
+      target: defender,
+      damage: finalDamage,
+      isCrit: damageResult.isCritical,
+      rawDamage: damageResult.rawDamage
+    };
+    
+    const effectResults = this.triggerSoulEffects(attacker, BattleEventType.ON_DAMAGE_DEALT, damageContext);
+    
+    // 处理套装效果结果
+    for (const result of effectResults) {
+      // 处理伤害倍率
+      if (result.damageMultiplier) {
+        finalDamage *= result.damageMultiplier;
+      }
+      
+      // 处理额外伤害
+      if (result.extraDamage) {
+        finalDamage += result.extraDamage;
+        
+        // 如果是无视防御的额外伤害，直接加到最终伤害
+        if (result.ignoreDefense) {
+          // 这里简化处理，实际应该重新计算伤害
+          finalDamage += result.extraDamage;
+        }
+      }
+      
+      // 处理其他效果（如状态加成、额外回合等）
+      // 可以根据需要扩展
+    }
+    
+    // 确保伤害值为正数
+    finalDamage = Math.max(1, Math.floor(finalDamage));
+    
+    // 应用最终伤害
+    defender.takeDamage(finalDamage);
 
     // 触发伤害事件
     this.triggerEvent(BattleEventType.ON_DAMAGE_DEALT, {
       attackerId: attacker.instanceId,
       defenderId: defender.instanceId,
-      damage: damageResult.damage,
+      damage: finalDamage,
       isCritical: damageResult.isCritical
+    });
+    
+    // 触发受伤害者的被动技能机制
+    this.triggerPassiveMechanics(defender, BattleEventType.ON_DAMAGE_RECEIVED, {
+      attacker,
+      damageResult,
+      finalDamage
     });
 
     // 检查是否死亡
@@ -325,6 +482,39 @@ export class BattleEngine {
       this.triggerEvent(BattleEventType.ON_CHARACTER_DEATH, {
         characterId: defender.instanceId
       });
+    }
+  }
+  
+  /**
+   * 触发被动技能机制
+   */
+  private triggerPassiveMechanics(character: CharacterInstance, eventType: BattleEventType, context: any): void {
+    // 这里简化处理，实际应该获取角色的技能列表，检查是否有被动技能
+    // 并触发相应的被动技能机制
+    
+    // 示例：检查角色是否有伤害反弹技能
+    const registry = SkillMechanicRegistry.getInstance();
+    const mechanicContext = {
+      caster: character,
+      targets: [],
+      battleState: this.battleState,
+      battleEngine: this,
+      skill: null as any,
+      skillId: 'UNKNOWN',
+      eventType,
+      ...context
+    };
+    
+    // 这里可以根据角色的技能列表触发相应的被动机制
+    // 示例：触发伤害反弹机制
+    const result = registry.executeMechanic('MECH_DAMAGE_REFLECT', mechanicContext);
+    if (result && result.reflectDamage) {
+      // 处理伤害反弹
+      const attacker = context.attacker;
+      if (attacker) {
+        attacker.takeDamage(result.reflectDamage);
+        console.log(result.message);
+      }
     }
   }
 
@@ -360,44 +550,92 @@ export class BattleEngine {
    * 触发御魂效果
    * @param character 角色实例
    * @param eventType 事件类型
+   * @param context 额外上下文信息（如目标、伤害值等）
    */
-  private triggerSoulEffects(character: CharacterInstance, eventType: BattleEventType): void {
-    // 简化实现：根据角色装备触发相应的御魂效果
-    // 实际应该根据装备的setId和eventType触发不同的效果
-    
-    // 获取角色的装备
-    const equipmentSetIds = character.equipment.map(equipId => {
-      // 这里需要从装备实例ID获取装备定义，实际应该有装备管理系统
-      // 简化处理，直接返回默认值
-      return "DEFAULT_SET";
-    });
+  private triggerSoulEffects(character: CharacterInstance, eventType: BattleEventType, context?: any): any {
+    // 结果汇总
+    const results: any[] = [];
     
     // 统计套装数量
     const setCounts: Map<string, number> = new Map();
-    for (const setId of equipmentSetIds) {
-      setCounts.set(setId, (setCounts.get(setId) || 0) + 1);
+    
+    // 遍历角色装备，获取每个装备的setId
+    for (const equipId of character.equipment) {
+      try {
+        // 从装备实例ID获取装备实例
+        // 这里我们通过装备服务获取装备定义，实际应该有装备实例管理系统
+        // 先尝试从插件系统获取装备定义
+        const equipmentDef = this.gameData?.getEquipment(equipId);
+        
+        if (equipmentDef && equipmentDef.setId) {
+          // 使用装备定义中的setId
+          const setId = equipmentDef.setId;
+          setCounts.set(setId, (setCounts.get(setId) || 0) + 1);
+        } else {
+          // 备选方案：如果无法获取装备定义，使用装备ID的前缀作为setId
+          // 这是一个兼容性处理，确保即使装备定义不存在也能正常运行
+          const setId = equipId.split('_')[0] || 'DEFAULT_SET';
+          setCounts.set(setId, (setCounts.get(setId) || 0) + 1);
+        }
+      } catch (error) {
+        console.warn(`Failed to get setId for equipment ${equipId}:`, error);
+        // 错误处理：使用默认值，确保系统不会崩溃
+        const setId = 'DEFAULT_SET';
+        setCounts.set(setId, (setCounts.get(setId) || 0) + 1);
+      }
     }
     
     // 触发套装效果
     for (const [setId, count] of setCounts.entries()) {
-      // 根据套装ID和数量触发相应的效果
-      // 这里简化处理，实际应该从配置或插件系统获取套装效果
-      console.log(`Triggering soul effect for set ${setId} with count ${count} on event ${eventType}`);
+      // 获取套装定义
+      const setDef = EQUIPMENT_SETS[setId];
+      if (!setDef) {
+        console.warn(`Equipment set definition not found for setId: ${setId}`);
+        continue;
+      }
       
-      // 示例：4件套效果
-      if (count >= 4) {
-        // 根据eventType触发不同的效果
-        switch (eventType) {
-          case BattleEventType.ON_TURN_END:
-            // 示例：狂骨效果，根据当前鬼火增加伤害
-            break;
-          case BattleEventType.ON_DAMAGE_DEALT:
-            // 示例：心眼效果，目标生命值低时增加伤害
-            break;
-          // 其他事件类型...
+      // 获取该套装所有可用的效果件数，并按从大到小排序
+      const availablePieces = Object.keys(setDef.effects)
+        .map(Number)
+        .filter(piece => piece <= count)
+        .sort((a, b) => b - a);
+      
+      // 遍历所有已达到的效果件数，应用对应的效果
+      for (const piece of availablePieces) {
+        const effect = setDef.effects[piece];
+        if (!effect) continue;
+        
+        // 如果有effectId，触发特殊效果
+        if (effect.effectId) {
+          try {
+            const registry = SetEffectRegistry.getInstance();
+            const effectContext: SetEffectContext = {
+              character,
+              battleState: this.battleState,
+              eventType,
+              battleEngine: this,
+              ...context
+            };
+            
+            // 执行效果并收集结果
+            const result = registry.executeEffect(effect.effectId, effectContext);
+            if (result) {
+              results.push(result);
+              
+              // 如果有消息，打印日志
+              if (result.message) {
+                console.log(result.message);
+              }
+            }
+          } catch (error) {
+            console.error(`Failed to execute effect ${effect.effectId} for set ${setId}:`, error);
+          }
         }
       }
     }
+    
+    // 返回所有效果结果
+    return results;
   }
 
   /**

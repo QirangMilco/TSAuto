@@ -3,6 +3,30 @@
  * ⚠️ 法律文件：禁止修改此文件中的接口定义
  */
 
+// ==================== 套装效果接口 ====================
+
+/**
+ * 套装效果上下文
+ * 包含效果触发时的所有必要信息
+ */
+export interface SetEffectContext {
+    character: any;         // 触发效果的角色
+    target?: any;           // 目标角色（如果适用）
+    battleState: any;       // 当前战斗状态
+    eventType: BattleEventType; // 事件类型
+    damage?: number;        // 当前伤害值（如果是伤害相关事件）
+    skillId?: string;       // 使用的技能ID（如果是技能相关事件）
+    battleEngine: any;      // 战斗引擎实例，用于调用其他方法
+    isCrit?: boolean;       // 是否暴击（如果是伤害相关事件）
+    rawDamage?: number;     // 原始伤害值（如果是伤害相关事件）
+}
+
+/**
+ * 套装效果函数接口
+ * 定义了套装效果的执行逻辑
+ */
+export type SetEffectFunction = (context: SetEffectContext) => any;
+
 // ==================== 基础枚举 ====================
 
 export enum BattleEventType {
@@ -10,6 +34,7 @@ export enum BattleEventType {
 	ON_TURN_START = "ON_TURN_START",
 	ON_TURN_END = "ON_TURN_END",
 	ON_DAMAGE_DEALT = "ON_DAMAGE_DEALT",
+	ON_DAMAGE_RECEIVED = "ON_DAMAGE_RECEIVED",
 	ON_HEAL_RECEIVED = "ON_HEAL_RECEIVED",
 	ON_STATUS_APPLIED = "ON_STATUS_APPLIED",
 	ON_STATUS_REMOVED = "ON_STATUS_REMOVED",
@@ -223,6 +248,28 @@ export interface CharacterDefinition {
 }
 
 /**
+ * 技能机制上下文
+ * 包含技能机制触发时的所有必要信息
+ */
+export interface SkillMechanicContext {
+    caster: any;          // 施法者
+    targets: any[];       // 目标列表
+    battleState: any;     // 当前战斗状态
+    battleEngine: any;    // 战斗引擎实例
+    skill: SkillDefinition; // 技能定义
+    skillId: string;      // 技能ID
+    eventType?: BattleEventType; // 事件类型（如果是被动触发）
+    damageResult?: any;   // 伤害结果（如果是伤害相关事件）
+    healResult?: any;     // 治疗结果（如果是治疗相关事件）
+}
+
+/**
+ * 技能机制函数接口
+ * 定义了技能机制的执行逻辑
+ */
+export type SkillMechanicFunction = (context: SkillMechanicContext) => any;
+
+/**
  * 技能定义 (插件接口)
  */
 export interface SkillDefinition {
@@ -236,10 +283,14 @@ export interface SkillDefinition {
 	};
 
 	activeEffects?: Effect[]; // 主动效果
-	passiveListeners?: {     // 被动监听
+	passiveListeners?: {		// 被动监听
 		event: BattleEventType;
 		effects: Effect[];
+		mechanicId?: string; // 可选的自定义机制ID
 	}[];
+
+	// 主动技能机制
+	mechanicId?: string; // 关联到战斗系统的机制ID
 
 	// 技能描述 (可选，用于UI显示)
 	description?: string;
