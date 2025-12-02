@@ -16,7 +16,7 @@ interface StatMeta {
  */
 export const EQUIPMENT_CONFIG = {
   // 装备槽数量配置
-  SLOT_COUNT: 6, // 默认6个装备槽，模组可以修改此值
+  SLOT_COUNT: 5, // 与五行系统一致，5个装备槽
   
   // 属性元数据表 (整合了成长、副属性范围、权重)
   STATS: {
@@ -36,13 +36,28 @@ export const EQUIPMENT_CONFIG = {
   } as Record<StatType, StatMeta>,
 
   // 主属性分布规则 (Key: 槽位, Value: 可能的属性)
-  // 模组可以扩展或修改此配置，添加新的槽位和对应的主属性
+  // 与五行系统对应：1-[金]-攻伐, 2-[水]-节奏, 3-[木]-生长, 4-[火]-爆发, 5-[土]-承载
   SLOT_MAIN_STATS: {
-    1: [StatType.ATK],
-    2: [StatType.ATK_P, StatType.HP_P, StatType.DEF_P, StatType.SPD],
-    3: [StatType.DEF],
-    4: [StatType.ATK_P, StatType.HP_P, StatType.DEF_P, StatType.EFFECT_HIT, StatType.EFFECT_RESIST],
-    5: [StatType.HP],
-    6: [StatType.ATK_P, StatType.HP_P, StatType.DEF_P, StatType.CRIT, StatType.CRIT_DMG]
+    // 金-宝剑-攻伐：[基石] 保证所有角色拥有最基础的普攻与技能伤害系数，对应传统RPG的武器位
+    1: [StatType.ATK], // 固定攻击 (Flat ATK)
+    
+    // 水-流云-节奏：[博弈核心]
+    // • 抢一速/辅助：必选速度
+    // • 尾速输出：选攻击加成（避免乱轴）
+    // • 纯肉盾：选生命/防御
+    // • 控制/解控：选命中/抵抗
+    2: [StatType.SPD, StatType.ATK_P, StatType.HP_P, StatType.DEF_P, StatType.EFFECT_HIT, StatType.EFFECT_RESIST], // 速度,攻击加成,生命加成,防御加成,效果命中,效果抵抗
+    
+    // 木-葫芦-生长：[放大器]纯粹的百分比放大位。决定角色的基础走向是"输出"、"承伤"还是"纯防御"
+    3: [StatType.ATK_P, StatType.HP_P, StatType.DEF_P], // 攻击加成,生命加成,防御加成
+    
+    // 火-闪电-爆发：[输出核心]输出角色的灵魂位置
+    // • 满暴前：选暴击率
+    // • 满暴后：选爆伤
+    // • 纯DOT/奶妈：可选攻击加成（如果不需要暴击）
+    4: [StatType.CRIT, StatType.CRIT_DMG, StatType.ATK_P], // 暴击率,暴击伤害,攻击加成
+    
+    // 土-兽面-承载：[基石] 保证脆皮输出不被满血秒杀，提供最基础的生存容错率，防止PVP变成"互秒"游戏
+    5: [StatType.HP] // 固定生命 (Flat HP)
   } as Record<number, StatType[]>
 };

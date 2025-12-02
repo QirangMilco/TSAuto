@@ -16,7 +16,7 @@ export interface EquipmentInstance {
     definitionId: string; // 对应 EquipmentDefinition.id
     setId: string;        // 套装ID
     name: string;         // 装备名称
-    slot: number;         // 部位 (1-6)
+    slot: number;         // 部位 (1-5)
     level: number;        // 强化等级 (0-15)
     grade: number;        // 星级 (1-6)
 
