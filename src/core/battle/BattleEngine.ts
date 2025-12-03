@@ -541,11 +541,37 @@ export class BattleEngine {
    * 处理状态效果
    */
   private processStatusEffects(character: CharacterInstance): void {
-    // 简化实现：减少所有状态的持续时间
+    // 1. 处理状态效果（持续伤害、属性加成等）
+    for (const status of character.statuses) {
+      // 获取状态定义
+      const statusDefinition = this.gameData.getStatus(status.statusId);
+      if (!statusDefinition) continue;
+      
+      // 2. 应用状态效果
+      if (statusDefinition.statModifiers) {
+        // 应用属性加成
+        for (const [statType, value] of Object.entries(statusDefinition.statModifiers)) {
+          // 这里需要将状态效果应用到角色当前属性上
+          // 注意：实际实现中应该有一个专门的属性计算系统来处理所有加成
+          console.log(`${character.name}获得了${statusDefinition.name}状态的${statType}加成: ${value}`);
+        }
+      }
+      
+      // 3. 处理回合开始触发的效果
+      if (statusDefinition.onTurnStart) {
+        for (const effect of statusDefinition.onTurnStart) {
+          // 执行状态效果
+          this.executeEffect(effect, character, character);
+        }
+      }
+    }
+    
+    // 4. 减少所有状态的持续时间
     character.statuses.forEach(status => {
-        status.remainingTurns--;
+      status.remainingTurns--;
     });
-    // 移除过期状态
+    
+    // 5. 移除过期状态
     character.statuses = character.statuses.filter(s => s.remainingTurns > 0);
   }
 

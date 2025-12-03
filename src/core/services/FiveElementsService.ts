@@ -1,6 +1,8 @@
 import { EquipmentInstance } from './EquipmentService';
 import { FIVE_ELEMENTS_CONFIG } from '../config/fiveElements';
 import { ElementType, ElementState, SlotElementInfo, FiveElementsResult, ElementRelationType } from '../types/fiveElements';
+import { EQUIPMENT_SETS } from '../config/equipmentSets';
+import { StatType } from '../types/definitions';
 
 /**
  * 五行系统服务
@@ -187,8 +189,49 @@ export class FiveElementsService {
         // 计算五行加成
         for (const slotElement of fiveElementsResult.slotElements) {
             // 根据元素类型和状态添加不同的加成
-            // 这里可以根据游戏设计添加具体的加成逻辑
-            // 例如：金元素提供攻击加成，水元素提供生命加成等
+            const { element, power, efficiency } = slotElement;
+            const effectivePower = power * efficiency;
+            
+            switch (element) {
+                case ElementType.METAL: // 金 - 攻击型槽位
+                    // 攻击加成
+                    result[StatType.ATK_P] = (result[StatType.ATK_P] || 0) + (effectivePower * 0.01);
+                    // 暴击率加成
+                    result[StatType.CRIT] = (result[StatType.CRIT] || 0) + (effectivePower * 0.005);
+                    // 暴击伤害加成
+                    result[StatType.CRIT_DMG] = (result[StatType.CRIT_DMG] || 0) + (effectivePower * 0.01);
+                    break;
+                    
+                case ElementType.WATER: // 水 - 支持型槽位
+                    // 效果命中加成
+                    result[StatType.EFFECT_HIT] = (result[StatType.EFFECT_HIT] || 0) + (effectivePower * 0.01);
+                    // 效果抵抗加成
+                    result[StatType.EFFECT_RESIST] = (result[StatType.EFFECT_RESIST] || 0) + (effectivePower * 0.01);
+                    // 治疗加成
+                    result[StatType.HEAL_BONUS] = (result[StatType.HEAL_BONUS] || 0) + (effectivePower * 0.01);
+                    break;
+                    
+                case ElementType.WOOD: // 木 - 生长型槽位
+                    // 生命加成
+                    result[StatType.HP_P] = (result[StatType.HP_P] || 0) + (effectivePower * 0.01);
+                    // 承受治疗加成
+                    result[StatType.RECEIVE_HEAL_BONUS] = (result[StatType.RECEIVE_HEAL_BONUS] || 0) + (effectivePower * 0.01);
+                    break;
+                    
+                case ElementType.FIRE: // 火 - 爆发型槽位
+                    // 伤害加成
+                    result[StatType.DMG_BONUS] = (result[StatType.DMG_BONUS] || 0) + (effectivePower * 0.01);
+                    // 无视防御
+                    result[StatType.IGNORE_DEF_P] = (result[StatType.IGNORE_DEF_P] || 0) + (effectivePower * 0.005);
+                    break;
+                    
+                case ElementType.EARTH: // 土 - 防御型槽位
+                    // 防御加成
+                    result[StatType.DEF_P] = (result[StatType.DEF_P] || 0) + (effectivePower * 0.01);
+                    // 速度加成
+                    result[StatType.SPD_P] = (result[StatType.SPD_P] || 0) + (effectivePower * 0.005);
+                    break;
+            }
         }
         
         return result;
@@ -200,8 +243,88 @@ export class FiveElementsService {
      * @returns 激活的套装效果列表
      */
     public static getActiveSetEffects(equipments: EquipmentInstance[]): any[] {
-        // 这里可以实现基于五行系统的套装效果逻辑
-        // 例如：某些套装效果需要特定的五行组合才能激活
-        return [];
+        // 如果五行系统未开启，返回空列表
+        if (!FIVE_ELEMENTS_CONFIG.ENABLED) {
+            return [];
+        }
+        
+        // 统计套装数量
+        const setCounts: Record<string, number> = {};
+        for (const equip of equipments) {
+            setCounts[equip.setId] = (setCounts[equip.setId] || 0) + 1;
+        }
+        
+        // 计算五行结果
+        const fiveElementsResult = this.calculateFiveElements(equipments);
+        
+        // 收集激活的套装效果
+        const activeEffects: any[] = [];
+        
+        // 遍历每个套装
+        for (const [setId, count] of Object.entries(setCounts)) {
+            // 获取套装定义
+            const setDefinition = EQUIPMENT_SETS[setId];
+            if (!setDefinition) continue;
+            
+            // 查找最大激活的件数
+            const possiblePieceCounts = Object.keys(setDefinition.effects)
+                .map(Number)
+                .sort((a, b) => b - a);
+            
+            for (const pieceCount of possiblePieceCounts) {
+                if (count >= pieceCount) {
+                    const effect = setDefinition.effects[pieceCount];
+                    if (effect) {
+                        // 基于五行关系的效果增强
+                        const enhancedEffect = this.enhanceSetEffect(effect, fiveElementsResult);
+                        activeEffects.push({
+                            setId,
+                            setName: setDefinition.name,
+                            pieceCount,
+                            effect: enhancedEffect
+                        });
+                    }
+                    break; // 只激活最高阶效果
+                }
+            }
+        }
+        
+        return activeEffects;
+    }
+    
+    /**
+     * 基于五行结果增强套装效果
+     * @param effect 原始套装效果
+     * @param fiveElementsResult 五行计算结果
+     * @returns 增强后的套装效果
+     */
+    private static enhanceSetEffect(effect: any, fiveElementsResult: FiveElementsResult): any {
+        // 复制原始效果
+        const enhancedEffect = { ...effect };
+        
+        // 根据五行状态调整效果值
+        if (effect.value !== undefined) {
+            // 计算五行增强系数
+            const { stateSummary } = fiveElementsResult;
+            
+            // 健康状态提供正向加成，被抑制状态提供负向加成
+            const healthBonus = stateSummary[ElementState.HEALTHY] * 0.1; // 每个健康元素 +10%
+            const suppressedPenalty = stateSummary[ElementState.SUPPRESSED] * 0.05; // 每个被抑制元素 -5%
+            const starvedPenalty = stateSummary[ElementState.STARVED] * 0.03; // 每个饥饿元素 -3%
+            
+            // 总增强系数
+            const enhancementFactor = 1 + healthBonus - suppressedPenalty - starvedPenalty;
+            
+            // 应用增强
+            enhancedEffect.value = Math.round(effect.value * enhancementFactor);
+            enhancedEffect.enhancement = {
+                healthBonus,
+                suppressedPenalty,
+                starvedPenalty,
+                totalFactor: enhancementFactor
+            };
+        }
+        
+        return enhancedEffect;
     }
 }
