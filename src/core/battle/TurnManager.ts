@@ -161,7 +161,7 @@ export class TurnManager {
    * 重置角色行动条
    */
   public resetActionBar(character: CharacterInstance): void {
-    character.actionBarPosition = 0;
+    character.actionBarPosition -= this.globalFastestSpeed;
   }
   
   /**

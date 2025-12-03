@@ -185,9 +185,11 @@ describe('TurnManager', () => {
   });
   
   it('should reset action bar correctly', () => {
+    const globalFastestSpeed = turnManager.getGlobalFastestSpeed();
     character1.actionBarPosition = 500;
     turnManager.resetActionBar(character1);
-    expect(character1.actionBarPosition).toBe(0);
+    // 根据CTB机制，重置行动条应该减去全场一速值，而不是直接重置为0
+    expect(character1.actionBarPosition).toBe(500 - globalFastestSpeed);
   });
   
   it('should adjust action bar correctly', () => {

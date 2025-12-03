@@ -7,6 +7,7 @@ import { DamageCalculator } from './DamageCalculator';
 import { SetEffectRegistry } from './SetEffectRegistry';
 import { SkillMechanicRegistry } from './SkillMechanicRegistry';
 import { EQUIPMENT_SETS } from '../config/equipmentSets';
+import { StatsCalculator } from '../services/StatsCalculator';
 
 /**
  * 战斗引擎
@@ -551,9 +552,19 @@ export class BattleEngine {
       if (statusDefinition.statModifiers) {
         // 应用属性加成
         for (const [statType, value] of Object.entries(statusDefinition.statModifiers)) {
-          // 这里需要将状态效果应用到角色当前属性上
-          // 注意：实际实现中应该有一个专门的属性计算系统来处理所有加成
+          // 使用StatsCalculator应用状态效果加成
+          const statTypeEnum = statType as StatType;
+          character.currentStats[statTypeEnum] = (character.currentStats[statTypeEnum] || 0) + value;
           console.log(`${character.name}获得了${statusDefinition.name}状态的${statType}加成: ${value}`);
+        }
+        
+        // 更新角色的maxHp（如果HP相关属性有变化）
+        if (statusDefinition.statModifiers.HP || statusDefinition.statModifiers.HP_P) {
+          character.maxHp = character.currentStats[StatType.HP];
+          // 确保当前HP不超过新的maxHp
+          if (character.currentHp > character.maxHp) {
+            character.currentHp = character.maxHp;
+          }
         }
       }
       
