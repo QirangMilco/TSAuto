@@ -128,7 +128,7 @@ export class GachaService {
   
   /**
    * 检查是否需要重置保底计数
-   * 如果抽中了保底稀有度或更高稀有度，应该重置保底计数
+   * 只有稀有度等级低于rarityRankThreshold的抽卡才会累积保底计数
    */
   private shouldResetPity(rarity: Rarity): boolean {
     const config = this.configManager.getConfig();
@@ -139,12 +139,14 @@ export class GachaService {
     const currentRarityConfig = config.rarities.find(r => r.type === rarity);
     const currentRank = currentRarityConfig?.rank || 0;
     
-    // 获取保底稀有度的等级
+    // 获取保底稀有度的等级，作为默认的rarityRankThreshold
     const guaranteedRarityConfig = config.rarities.find(r => r.type === pityConfig.guaranteedRarity);
     const guaranteedRank = guaranteedRarityConfig?.rank || 0;
     
-    // 如果抽中了保底稀有度或更高稀有度，重置保底计数
-    return currentRank >= guaranteedRank;
+    // 如果抽中了稀有度等级大于等于rarityRankThreshold的角色，重置保底计数
+    // 只有稀有度等级低于rarityRankThreshold的抽卡才会累积保底计数
+    const rarityRankThreshold = pityConfig.rarityRankThreshold || guaranteedRank;
+    return currentRank >= rarityRankThreshold;
   }
   
   /**

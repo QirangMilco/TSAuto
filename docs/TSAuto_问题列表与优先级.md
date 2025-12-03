@@ -69,6 +69,20 @@
         -   无法实现“跳过战斗”、“极速运算”或“后端验算”功能。
         -   导致单元测试运行缓慢。
 
+5.  **BattleEngine 包含硬编码 Sleep (逻辑表现未分离)**
+    -   **来源**：新增 (Code Review)
+    -   **位置**：`src/core/battle/BattleEngine.ts` (多处调用 `await this.sleep`)
+    -   **修复状态**：已修复 ✅
+    -   **修复内容**：
+        -   删除了 `sleep` 方法的定义
+        -   移除了所有 `await this.sleep` 调用，包括开场动画、视觉停顿、AI思考时间、施法前后摇等
+        -   删除了 `battleSpeed` 属性，不再依赖硬编码的动画延迟
+    -   **影响**：
+        -   实现了真正的逻辑-表现分离，符合架构原则
+        -   战斗引擎可以以最大速度运行，支持"跳过战斗"和"后端验算"功能
+        -   单元测试运行速度显著提升
+        -   为后续实现不同战斗速度和战斗跳过功能打下基础
+
 6.  **StatsCalculator 缺少状态定义和装备实例管理**
     -   **来源**：新增 (Code Review)
     -   **位置**：`src/core/services/StatsCalculator.ts`

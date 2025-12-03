@@ -21,7 +21,7 @@ export class BattleEngine {
   private eventListeners: Map<BattleEventType, ((event: BattleEvent) => void)[]>;
 
   private isRunning: boolean = false;
-  private battleSpeed: number = 800; // 基础动画延迟 (ms)
+
   private pendingPlayerInputResolve: ((action: PlayerAction) => void) | null = null; // 用于挂起等待玩家输入
 
   constructor(gameData: GameDataInterface) {
@@ -83,12 +83,7 @@ export class BattleEngine {
     };
   }
 
-  /**
-  * 异步等待辅助函数
-  */
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+  
 
   /**
    * 等待玩家输入
@@ -112,8 +107,7 @@ export class BattleEngine {
       battleId: this.battleState.battleId
     });
 
-    // 等待开场动画
-    await this.sleep(this.battleSpeed);
+
 
     // 开始战斗循环
     await this.battleLoop();
@@ -141,8 +135,7 @@ export class BattleEngine {
           round: this.battleState.round
         });
 
-        // 视觉停顿：让玩家看清楚轮到谁了
-        await this.sleep(this.battleSpeed * 0.5);
+
 
         // 处理该角色的行动
         await this.processCharacterTurn(actingCharacter);
@@ -165,15 +158,12 @@ export class BattleEngine {
         // 检查战斗结果
         this.checkBattleResult();
 
-        // 视觉停顿：回合结束稍作休息
-        await this.sleep(this.battleSpeed * 0.5);
+
 
         // 推进回合数
         this.battleState.round++;
       } else {
-        // 如果没有角色跑满条（理论上 TurnManager.updateActionBar 会一直跑到有人满为止）
-        // 这里加个保护防止死循环
-        await this.sleep(100);
+
       }
     }
 
@@ -204,8 +194,7 @@ export class BattleEngine {
         // === 敌方回合：简单的 AI 决策 ===
         console.log(`AI thinking: ${character.instanceId}`);
         
-        // 模拟 AI 思考时间
-        await this.sleep(this.battleSpeed); 
+ 
         
         // 简单的 AI：随机普攻一个活着的玩家
         const alivePlayers = this.battleState.players.filter(p => !p.isDead);
@@ -262,8 +251,7 @@ export class BattleEngine {
       casterId
     });
     
-    // 施法前摇延迟
-    await this.sleep(this.battleSpeed * 0.8);
+
 
     // 2. 触发技能机制 (如果有)
     const mechanicResults: any[] = [];
@@ -296,8 +284,7 @@ export class BattleEngine {
     if (skill.activeEffects) {
       for (const effect of skill.activeEffects) {
         this.executeEffect(effect, caster, target);
-        // 多个效果之间稍微间隔一点，防止数字重叠
-        await this.sleep(200); 
+ 
       }
     }
     
@@ -309,8 +296,7 @@ export class BattleEngine {
       }
     }
     
-    // 技能后摇延迟
-    await this.sleep(this.battleSpeed * 0.5);
+
   }
   
   /**
@@ -362,14 +348,13 @@ export class BattleEngine {
     
     const assistTarget = targets[Math.floor(Math.random() * targets.length)];
     
-    // 触发协战攻击
-    await this.sleep(this.battleSpeed * 0.5);
+
     
     const skill = this.gameData.getSkill(skillId);
     if (skill && skill.activeEffects) {
       for (const effect of skill.activeEffects) {
         this.executeEffect(effect, character, assistTarget);
-        await this.sleep(150);
+
       }
     }
   }
