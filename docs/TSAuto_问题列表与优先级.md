@@ -38,6 +38,11 @@
 3.  **BattleEngine 战斗结果处理逻辑中断**
     -   **原级**：P0
     -   **位置**：`src/core/battle/BattleEngine.ts:682`
+    -   **修复状态**：已修复 ✅
+    -   **修复内容**：
+        -   在 `BattleEventType` 枚举中添加了 `ON_BATTLE_END` 事件类型
+        -   修改了 `checkBattleResult` 方法，在战斗结束时触发 `ON_BATTLE_END` 事件，传递战斗结果和战斗ID
+        -   仅在战斗真正结束时（胜负已分时）触发事件，避免不必要的通知
     -   **问题**：`checkBattleResult` 在设置结果后仅将 `isRunning` 设为 `false`，但没有通过 Promise 或回调通知 UI 层战斗已结束。
     -   **影响**：UI 层无法感知战斗结束，无法弹出结算画面，游戏流程卡死。
 

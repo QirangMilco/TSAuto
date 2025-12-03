@@ -687,10 +687,19 @@ export class BattleEngine {
 
     if (allPlayersDead) {
       this.battleState.result = "DEFEAT";
+      this.isRunning = false;
+      this.triggerEvent(BattleEventType.ON_BATTLE_END, {
+        result: this.battleState.result,
+        battleId: this.battleState.battleId
+      });
     } else if (allEnemiesDead) {
       this.battleState.result = "VICTORY";
+      this.isRunning = false;
+      this.triggerEvent(BattleEventType.ON_BATTLE_END, {
+        result: this.battleState.result,
+        battleId: this.battleState.battleId
+      });
     }
-    this.isRunning = false;
   }
 
   /**
