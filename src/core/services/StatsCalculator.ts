@@ -1,7 +1,8 @@
-import { StatType } from '../types/definitions';
+import { StatType, BuffType } from '../types/definitions';
 import { CharacterInstance } from '../types/battle';
 import { CharacterStatsService } from './CharacterStatsService';
 import { EquipmentService, EquipmentInstance } from './EquipmentService';
+import type { GameDataInterface } from '../types/plugin';
 
 /**
  * 统一属性计算服务
@@ -12,6 +13,17 @@ import { EquipmentService, EquipmentInstance } from './EquipmentService';
  * - 其他临时加成
  */
 export class StatsCalculator {
+    // 静态游戏数据访问接口，用于获取状态定义和装备定义
+    private static gameData: GameDataInterface | undefined;
+    
+    /**
+     * 设置游戏数据访问接口
+     * @param gameData 游戏数据访问接口
+     */
+    public static setGameData(gameData: GameDataInterface): void {
+        this.gameData = gameData;
+    }
+    
     /**
      * 计算角色最终属性值
      * @param character 角色实例
@@ -25,15 +37,19 @@ export class StatsCalculator {
         let baseValue = character.currentStats[statType] || 0;
         
         // 2. 计算装备/御魂加成
-        // 注意：这里需要从装备实例ID获取装备实例
-        // 由于当前系统中没有装备实例管理，我们暂时跳过这部分
-        // TODO: 实现装备实例管理，从装备ID获取装备实例
+        let equipmentBonus = 0;
+        if (character.equipment && character.equipment.length > 0) {
+            // 临时实现：假设装备实例直接存储在 character.equipment 中
+            // 实际应该从装备实例ID获取装备实例
+            // TODO: 实现装备实例管理系统，从装备ID获取装备实例
+            // 目前我们简化处理，跳过装备加成计算
+        }
         
         // 3. 计算状态效果加成
         const statusBonus = this.calculateStatusEffectsBonus(character, statType);
         
         // 4. 计算总属性
-        let finalValue = baseValue + statusBonus;
+        let finalValue = baseValue + equipmentBonus + statusBonus;
         
         // 5. 处理百分比属性的特殊计算
         if (this.isPercentageStat(statType)) {
@@ -62,14 +78,36 @@ export class StatsCalculator {
         
         // 遍历角色所有状态
         character.statuses.forEach(status => {
-            // 状态效果的加成值，这里需要从状态定义中获取
-            // 由于当前系统中没有状态定义管理，我们暂时使用状态的effect.value
-            // TODO: 实现状态定义管理，从状态ID获取完整状态定义
-            if (status.effect && status.effect.value) {
-                // 根据状态类型和属性类型计算加成
-                // 注意：这里需要根据具体的状态定义来计算加成
-                // 暂时简化处理，直接返回effect.value作为加成
-                bonus += status.effect.value;
+            // 从gameData中获取完整的状态定义
+            const statusDefinition = this.gameData?.getStatus(status.statusId);
+            
+            // 如果获取到状态定义，使用其中的statModifiers
+            if (statusDefinition && statusDefinition.statModifiers) {
+                const statValue = statusDefinition.statModifiers[statType];
+                if (statValue !== undefined) {
+                    bonus += statValue;
+                }
+            } 
+            // 兼容旧逻辑：如果没有获取到状态定义，使用状态类型推断
+            else if (status.type) {
+                switch (status.type) {
+                    case BuffType.ATK_UP:
+                        if (statType === StatType.ATK_P) {
+                            bonus += 30; // 假设攻击提升状态提供30%攻击加成
+                        }
+                        break;
+                    case BuffType.DEF_UP:
+                        if (statType === StatType.DEF_P) {
+                            bonus += 30; // 假设防御提升状态提供30%防御加成
+                        }
+                        break;
+                    case BuffType.SPD_UP:
+                        if (statType === StatType.SPD_P) {
+                            bonus += status.effect?.value || 0; // 使用状态的effect.value作为速度加成
+                        }
+                        break;
+                    // 其他状态类型可以在此处扩展
+                }
             }
         });
         

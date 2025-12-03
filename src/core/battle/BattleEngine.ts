@@ -30,6 +30,9 @@ export class BattleEngine {
     this.damageCalculator = new DamageCalculator();
     this.eventListeners = new Map();
 
+    // 设置StatsCalculator的gameData
+    StatsCalculator.setGameData(gameData);
+
     // 初始化战斗状态
     this.battleState = this.createInitialBattleState();
   }
@@ -557,15 +560,6 @@ export class BattleEngine {
           character.currentStats[statTypeEnum] = (character.currentStats[statTypeEnum] || 0) + value;
           console.log(`${character.name}获得了${statusDefinition.name}状态的${statType}加成: ${value}`);
         }
-        
-        // 更新角色的maxHp（如果HP相关属性有变化）
-        if (statusDefinition.statModifiers.HP || statusDefinition.statModifiers.HP_P) {
-          character.maxHp = character.currentStats[StatType.HP];
-          // 确保当前HP不超过新的maxHp
-          if (character.currentHp > character.maxHp) {
-            character.currentHp = character.maxHp;
-          }
-        }
       }
       
       // 3. 处理回合开始触发的效果
@@ -577,13 +571,48 @@ export class BattleEngine {
       }
     }
     
-    // 4. 减少所有状态的持续时间
+    // 4. 使用统一的StatsCalculator重新计算所有属性
+    const newStats = StatsCalculator.recalculateAllStats(character);
+    character.currentStats = newStats;
+    
+    // 5. 更新角色的maxHp（如果HP相关属性有变化）
+    const newMaxHp = character.currentStats[StatType.HP];
+    if (newMaxHp !== character.maxHp) {
+      const hpRatio = character.currentHp / character.maxHp;
+      character.maxHp = newMaxHp;
+      // 按比例调整当前HP
+      character.currentHp = Math.round(newMaxHp * hpRatio);
+      // 确保当前HP不超过新的maxHp
+      if (character.currentHp > character.maxHp) {
+        character.currentHp = character.maxHp;
+      }
+      console.log(`${character.name}的最大生命值更新为: ${character.maxHp}, 当前生命值: ${character.currentHp}`);
+    }
+    
+    // 6. 减少所有状态的持续时间
     character.statuses.forEach(status => {
       status.remainingTurns--;
     });
     
-    // 5. 移除过期状态
+    // 7. 移除过期状态
     character.statuses = character.statuses.filter(s => s.remainingTurns > 0);
+    
+    // 8. 过期状态移除后，再次重新计算属性
+    const finalStats = StatsCalculator.recalculateAllStats(character);
+    character.currentStats = finalStats;
+    
+    // 再次更新maxHp（如果有状态被移除导致HP变化）
+    const finalMaxHp = character.currentStats[StatType.HP];
+    if (finalMaxHp !== character.maxHp) {
+      const hpRatio = character.currentHp / character.maxHp;
+      character.maxHp = finalMaxHp;
+      // 按比例调整当前HP
+      character.currentHp = Math.round(finalMaxHp * hpRatio);
+      // 确保当前HP不超过新的maxHp
+      if (character.currentHp > character.maxHp) {
+        character.currentHp = character.maxHp;
+      }
+    }
   }
 
   /**

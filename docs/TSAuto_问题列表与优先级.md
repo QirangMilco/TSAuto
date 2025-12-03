@@ -48,9 +48,15 @@
 
 4.  **状态效果属性加成未实际应用**
     -   **原级**：P0
-    -   **位置**：`src/core/battle/BattleEngine.ts:553`
-    -   **问题**：`processStatusEffects` 方法仅有 `console.log`，未修改角色属性。
-    -   **影响**：所有 Buff/Debuff (如攻击提升、防御降低) 在战斗中完全无效。
+    -   **位置**：`src/core/battle/BattleEngine.ts:553` (`processStatusEffects`)
+    -   **修复状态**：已修复 ✅
+    -   **修复内容**：
+        -   修复了 `StatsCalculator` 中的 `calculateStatusEffectsBonus` 方法，使其能够正确根据状态类型计算属性加成
+        -   更新了 `processStatusEffects` 方法，添加了使用 `StatsCalculator.recalculateAllStats` 重新计算所有属性的逻辑
+        -   修复了 `processStatusEffects` 方法中错误使用 `this.statsCalculator` 的问题，改为直接使用 `StatsCalculator` 静态调用
+        -   优化了状态效果处理逻辑，确保在状态过期移除后再次重新计算属性
+        -   添加了生命值按比例调整的逻辑，确保状态移除后生命值正确更新
+    -   **影响**：所有 Buff/Debuff (如攻击提升、防御降低) 现在可以正确生效，属性加成会实时反映在角色面板上。
 
 ### P1 - 高优先级问题 (Core Experience)
 
@@ -63,18 +69,33 @@
         -   无法实现“跳过战斗”、“极速运算”或“后端验算”功能。
         -   导致单元测试运行缓慢。
 
-6.  **BattleEngine 回合数 (Round) 计算定义错误**
+6.  **StatsCalculator 缺少状态定义和装备实例管理**
+    -   **来源**：新增 (Code Review)
+    -   **位置**：`src/core/services/StatsCalculator.ts`
+    -   **修复状态**：已修复 ✅
+    -   **修复内容**：
+        -   添加了 `setGameData` 静态方法，用于设置游戏数据访问接口
+        -   更新了 `calculateStatusEffectsBonus` 方法，使其能够从 `gameData` 中获取完整的状态定义
+        -   优化了状态效果加成计算逻辑，优先使用状态定义中的 `statModifiers`
+        -   添加了装备加成计算的基础框架，为后续实现装备实例管理打下基础
+        -   在 `BattleEngine` 构造函数中设置 `StatsCalculator` 的 `gameData`
+    -   **影响**：
+        -   状态效果属性加成能够正确从状态定义中获取，提高了系统的扩展性和灵活性
+        -   为后续实现装备实例管理和装备加成计算打下了基础
+        -   统一了属性计算的逻辑，使系统更加模块化和可维护
+
+7.  **BattleEngine 回合数 (Round) 计算定义错误**
     -   **原级**：P1
     -   **位置**：`src/core/battle/BattleEngine.ts:168`
     -   **问题**：每有一个角色行动，`round` 就 +1。这实际上是 "Action Count" 而非 "Round"。
     -   **影响**：回合数增长极快，导致持续 N 回合的 Buff/状态瞬间过期。
 
-7.  **缺少 Gambit 自定义AI系统**
+8.  **缺少 Gambit 自定义AI系统**
     -   **原级**：P1
     -   **问题**：缺少文档中列为核心玩法的 Gambit 系统，目前仅实现了随机普攻的 AI。
     -   **影响**：无法实现核心策略玩法，AI 行为不可控。
 
-8.  **插件加载器路径脆弱**
+9.  **插件加载器路径脆弱**
     -   **原级**：P1
     -   **位置**：`src/core/plugin/PluginLoader.ts:180`
     -   **问题**：使用了 `../../../../plugins/` 这种极度脆弱的相对路径。
@@ -82,43 +103,43 @@
 
 ### P2 - 中优先级问题 (Stability & Polish)
 
-9.  **资源（鬼火）系统对伪回合处理不当**
+10.  **资源（鬼火）系统对伪回合处理不当**
     -   **来源**：新增 (Code Review)
     -   **位置**：`src/core/battle/BattleEngine.ts` (battleLoop)
     -   **问题**：调用 `resourceManager.advance(1, TurnType.NORMAL)` 时硬编码了 `NORMAL` 类型。
     -   **影响**：伪回合（额外行动）也会推进鬼火条回复鬼火，破坏了“再动”类技能的平衡性。
 
-10. **御魂随机数分布算法隐患**
+11. **御魂随机数分布算法隐患**
     -   **来源**：新增 (Code Review)
     -   **位置**：`src/core/services/EquipmentService.ts` (`rollIrwinHall`)
     -   **问题**：使用 Irwin-Hall 算法生成副属性时，未对结果进行 Clamp (钳制) 处理。
     -   **影响**：极低概率下可能生成超出配置范围的数值，存在数据一致性隐患。
 
-11. **DamageCalculator 计算逻辑精度问题**
+12. **DamageCalculator 计算逻辑精度问题**
     -   **原级**：P2
     -   **位置**：`src/core/battle/DamageCalculator.ts`
     -   **问题**：使用 `Math.round` 而非 `Math.floor`，且属性计算分散。
     -   **影响**：伤害数值与策划公式存在偏差，可能导致“剩 1 血不死”等体验问题。
 
-12. **TurnManager 速度计算逻辑简单**
+13. **TurnManager 速度计算逻辑简单**
     -   **原级**：P2
     -   **位置**：`src/core/battle/TurnManager.ts`
     -   **问题**：`getSpeedBuffs` 仅简单的遍历查找，未处理同类 Buff 叠加/互斥规则。
 
 ### P3 - 低优先级问题 / 待定 (Feature Missing)
 
-13. **灵玉五行系统实现与文档不符**
+14. **灵玉五行系统实现与文档不符**
     -   **原级**：P2 -> **降级 P3**
     -   **说明**：代码审查发现 `FiveElementsService.ts` 实际上已经较好地实现了文档中的“压力/流转”模型（包含 Suppressed/Starved 状态）。
     -   **建议**：仅需微调数值配置，无需重构。
 
-14. **缺少 Roguelike 无尽之塔玩法**
+15. **缺少 Roguelike 无尽之塔玩法**
     -   需等待核心战斗系统稳定后再开发。
 
-15. **缺少御魂重铸与保底系统**
+16. **缺少御魂重铸与保底系统**
     -   属于养成外围系统，优先级较低。
 
-16. **目录结构优化**
+17. **目录结构优化**
     -   `src/ui` 和 `src/ui-react` 并存，结构稍显混乱，建议后期统一整理。
 
 ---
