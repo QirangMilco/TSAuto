@@ -9,6 +9,9 @@ import { SkillMechanicRegistry } from './SkillMechanicRegistry';
 import { EQUIPMENT_SETS } from '../config/equipmentSets';
 import { StatsCalculator } from '../services/StatsCalculator';
 
+import { GambitEvaluator } from '../ai/GambitEvaluator';
+import { GambitTargetType, GambitTargetStrategy, GambitConditionType } from '../types/gambit';
+
 /**
  * 战斗引擎
  * 负责战斗核心逻辑、状态管理和流程控制
@@ -18,9 +21,11 @@ export class BattleEngine {
   private gameData: GameDataInterface;
   private turnManager: TurnManager;
   private damageCalculator: DamageCalculator;
+  private gambitEvaluator: GambitEvaluator;
   private eventListeners: Map<BattleEventType, ((event: BattleEvent) => void)[]>;
 
   private isRunning: boolean = false;
+  private totalActionCount: number = 0;
 
   private pendingPlayerInputResolve: ((action: PlayerAction) => void) | null = null; // 用于挂起等待玩家输入
 
@@ -28,6 +33,7 @@ export class BattleEngine {
     this.gameData = gameData;
     this.turnManager = new TurnManager([], gameData); // 传入gameData参数
     this.damageCalculator = new DamageCalculator();
+    this.gambitEvaluator = new GambitEvaluator(gameData);
     this.eventListeners = new Map();
 
     // 设置StatsCalculator的gameData
@@ -122,20 +128,31 @@ export class BattleEngine {
       const allCharacters = [...this.battleState.players, ...this.battleState.enemies];
 
       // 更新行动条
-      const readyCharacters = this.turnManager.updateActionBar(allCharacters);
+      const readyTurns = this.turnManager.updateActionBar(allCharacters);
 
-      if (readyCharacters.length > 0) {
+      if (readyTurns.length > 0) {
         // 处理第一个就绪的角色行动
-        const actingCharacter = readyCharacters[0];
+        const currentTurn = readyTurns[0];
+        const actingCharacter = currentTurn.character || this.findCharacterById(currentTurn.characterId);
+        
+        if (!actingCharacter) {
+            console.error(`Character not found for turn: ${currentTurn.characterId}`);
+            continue;
+        }
+
         this.battleState.activeCharacterId = actingCharacter.instanceId;
 
         // 触发回合开始事件
         this.triggerEvent(BattleEventType.ON_TURN_START, {
           characterId: actingCharacter.instanceId,
-          round: this.battleState.round
+          round: this.battleState.round,
+          turnType: currentTurn.turnType
         });
 
-
+        // 处理回合开始的状态效果（触发DoT/HoT，但不扣减持续时间）
+        // 仅在正常回合触发？或者额外回合也触发？通常额外回合也会触发DoT，但不扣回合数
+        // 这里暂时保持一致
+        this.processTurnStartStatusEffects(actingCharacter);
 
         // 处理该角色的行动
         await this.processCharacterTurn(actingCharacter);
@@ -143,25 +160,38 @@ export class BattleEngine {
         // 触发御魂效果（回合结束时）
         this.triggerSoulEffects(actingCharacter, BattleEventType.ON_TURN_END);
         
+        // 处理回合结束的状态效果（扣减持续时间，移除过期状态）
+        // 注意：额外回合通常不扣减Buff持续时间（伪回合不跑条，不掉Buff）
+        if (currentTurn.turnType === TurnType.NORMAL) {
+            this.processTurnEndStatusEffects(actingCharacter);
+        }
+
         // 触发回合结束事件
         this.triggerEvent(BattleEventType.ON_TURN_END, {
           characterId: actingCharacter.instanceId,
-          round: this.battleState.round
+          round: this.battleState.round,
+          turnType: currentTurn.turnType
         });
 
-        // 重置行动条
-        this.turnManager.resetActionBar(actingCharacter);
+        // 重置行动条 (仅正常回合需要重置；额外回合本身不消耗条，但为了防止逻辑死循环，通常额外回合结束后该标记会被移除)
+        // TurnManager的updateActionBar会自动处理extraTurnQueue的移除
+        if (currentTurn.turnType === TurnType.NORMAL) {
+            this.turnManager.resetActionBar(actingCharacter);
+        }
 
-        // 更新资源（默认是真回合）
-        this.battleState.resourceManager.advance(1, TurnType.NORMAL);
+        // 更新资源（仅正常回合）
+        if (currentTurn.turnType === TurnType.NORMAL) {
+            this.battleState.resourceManager.advance(1, TurnType.NORMAL);
+        }
 
         // 检查战斗结果
         this.checkBattleResult();
 
-
-
-        // 推进回合数
-        this.battleState.round++;
+        // 更新总行动次数和回合数 (仅正常回合计数？)
+        if (currentTurn.turnType === TurnType.NORMAL) {
+            this.totalActionCount++;
+            this.updateGlobalRound();
+        }
       } else {
 
       }
@@ -176,9 +206,7 @@ export class BattleEngine {
    */
   private async processCharacterTurn(character: CharacterInstance): Promise<void> {
     // 这里简化实现，实际应该根据AI或玩家输入决定行动
-    // 处理状态效果
-    this.processStatusEffects(character);
-
+    
     const isPlayer = this.battleState.players.some(p => p.instanceId === character.instanceId);
 
     if (isPlayer) {
@@ -191,21 +219,46 @@ export class BattleEngine {
         // 收到指令，执行技能逻辑
         await this.performSkillAction(action);
     } else {
-        // === 敌方回合：简单的 AI 决策 ===
+        // === 敌方回合：使用 Gambit AI ===
         console.log(`AI thinking: ${character.instanceId}`);
         
- 
-        
-        // 简单的 AI：随机普攻一个活着的玩家
-        const alivePlayers = this.battleState.players.filter(p => !p.isDead);
-        if (alivePlayers.length > 0) {
-            const randomTarget = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
-            // 假设所有怪物都有普通攻击 SKILL_1001 (需确保 GameData 里有)
-            // 如果没有，需要 fallback 逻辑
-            await this.performSkillAction({
-                skillId: "SKILL_1001", 
-                targetId: randomTarget.instanceId
-            });
+        let action: PlayerAction | null = null;
+
+        // 1. 尝试从 Gambit 获取行动
+        if (character.gambitId) {
+            // 注意：这里需要从 GameData 获取 Gambit 配置
+            // 由于 GameData 接口可能还没更新 getGambit，我们先模拟一个默认行为
+            // 或者假设 GameData 能够返回 Gambit
+            // 临时方案：如果找不到配置，回退到默认 AI
+            // TODO: 在 GameData 接口中添加 getGambit(id)
+            // const gambit = this.gameData.getGambit(character.gambitId);
+            // if (gambit) {
+            //    action = this.gambitEvaluator.decideAction(character, this.battleState, gambit);
+            // }
+        }
+
+        // 2. 如果没有 Gambit 或 Gambit 没返回有效行动，使用默认随机逻辑 (Fallback)
+        if (!action) {
+             // 构造一个临时的默认 Gambit：始终攻击随机敌人
+             const defaultGambit = {
+                 id: 'default_attack',
+                 name: 'Default Attack',
+                 rules: [{
+                     id: 'rule_1',
+                     name: 'Attack Random Enemy',
+                     priority: 10,
+                     condition: { type: GambitConditionType.ALWAYS },
+                     target: { type: GambitTargetType.ENEMY, strategy: GambitTargetStrategy.RANDOM },
+                     actionId: 'SKILL_1001' // 假设都有普攻
+                 }]
+             };
+             action = this.gambitEvaluator.decideAction(character, this.battleState, defaultGambit);
+        }
+
+        if (action) {
+            await this.performSkillAction(action);
+        } else {
+            console.warn(`AI ${character.instanceId} could not decide an action.`);
         }
     }
   }
@@ -527,27 +580,18 @@ export class BattleEngine {
   }
 
   /**
-   * 处理状态效果
+   * 处理回合开始时的状态效果
+   * 主要负责：触发状态的 onTurnStart 效果 (DoT, HoT等)，计算属性
+   * 注意：不扣减持续时间
    */
-  private processStatusEffects(character: CharacterInstance): void {
-    // 1. 处理状态效果（持续伤害、属性加成等）
+  private processTurnStartStatusEffects(character: CharacterInstance): void {
+    // 1. 处理状态效果（触发 onTurnStart）
     for (const status of character.statuses) {
       // 获取状态定义
       const statusDefinition = this.gameData.getStatus(status.statusId);
       if (!statusDefinition) continue;
       
-      // 2. 应用状态效果
-      if (statusDefinition.statModifiers) {
-        // 应用属性加成
-        for (const [statType, value] of Object.entries(statusDefinition.statModifiers)) {
-          // 使用StatsCalculator应用状态效果加成
-          const statTypeEnum = statType as StatType;
-          character.currentStats[statTypeEnum] = (character.currentStats[statTypeEnum] || 0) + value;
-          console.log(`${character.name}获得了${statusDefinition.name}状态的${statType}加成: ${value}`);
-        }
-      }
-      
-      // 3. 处理回合开始触发的效果
+      // 处理回合开始触发的效果
       if (statusDefinition.onTurnStart) {
         for (const effect of statusDefinition.onTurnStart) {
           // 执行状态效果
@@ -556,14 +600,63 @@ export class BattleEngine {
       }
     }
     
-    // 4. 使用统一的StatsCalculator重新计算所有属性
+    // 2. 使用统一的StatsCalculator重新计算所有属性
+    // 这一步是为了确保 onTurnStart 可能带来的属性变化（虽然目前主要是伤害/治疗）被应用
+    // 以及确保新的回合开始时属性是准确的
+    this.recalculateCharacterStats(character);
+  }
+
+  /**
+   * 处理回合结束时的状态效果
+   * 主要负责：扣减持续时间，移除过期状态
+   */
+  private processTurnEndStatusEffects(character: CharacterInstance): void {
+    // 1. 处理状态效果（触发 onTurnEnd）
+    for (const status of character.statuses) {
+        const statusDefinition = this.gameData.getStatus(status.statusId);
+        if (statusDefinition && statusDefinition.onTurnEnd) {
+            for (const effect of statusDefinition.onTurnEnd) {
+                this.executeEffect(effect, character, character);
+            }
+        }
+    }
+
+    // 2. 减少所有状态的持续时间
+    character.statuses.forEach(status => {
+      status.remainingTurns--;
+    });
+    
+    // 2. 移除过期状态
+    const expiredStatuses = character.statuses.filter(s => s.remainingTurns <= 0);
+    if (expiredStatuses.length > 0) {
+      character.statuses = character.statuses.filter(s => s.remainingTurns > 0);
+      
+      // 打印日志
+      expiredStatuses.forEach(s => {
+        const def = this.gameData.getStatus(s.statusId);
+        console.log(`${character.name}的状态 ${def?.name || s.statusId} 已过期`);
+      });
+      
+      // 3. 过期状态移除后，再次重新计算属性
+      this.recalculateCharacterStats(character);
+    }
+  }
+
+  /**
+   * 重新计算角色属性并处理 HP 比例变化
+   */
+  private recalculateCharacterStats(character: CharacterInstance): void {
+    const oldMaxHp = character.maxHp;
+    
+    // 计算新属性
     const newStats = StatsCalculator.recalculateAllStats(character);
     character.currentStats = newStats;
     
-    // 5. 更新角色的maxHp（如果HP相关属性有变化）
+    // 更新角色的maxHp（如果HP相关属性有变化）
     const newMaxHp = character.currentStats[StatType.HP];
-    if (newMaxHp !== character.maxHp) {
-      const hpRatio = character.currentHp / character.maxHp;
+    
+    if (newMaxHp !== oldMaxHp) {
+      const hpRatio = character.currentHp / oldMaxHp;
       character.maxHp = newMaxHp;
       // 按比例调整当前HP
       character.currentHp = Math.round(newMaxHp * hpRatio);
@@ -571,31 +664,28 @@ export class BattleEngine {
       if (character.currentHp > character.maxHp) {
         character.currentHp = character.maxHp;
       }
-      console.log(`${character.name}的最大生命值更新为: ${character.maxHp}, 当前生命值: ${character.currentHp}`);
+      // console.log(`${character.name}的最大生命值更新为: ${character.maxHp}, 当前生命值: ${character.currentHp}`);
     }
+  }
+
+  /**
+   * 更新全局回合数
+   * 逻辑：当总行动次数达到存活角色数量的倍数时，回合数 +1
+   * 这给出一个大致的“全场经过了一轮”的概念
+   */
+  private updateGlobalRound(): void {
+    const aliveCount = this.battleState.players.filter(p => !p.isDead).length + 
+                       this.battleState.enemies.filter(e => !e.isDead).length;
     
-    // 6. 减少所有状态的持续时间
-    character.statuses.forEach(status => {
-      status.remainingTurns--;
-    });
-    
-    // 7. 移除过期状态
-    character.statuses = character.statuses.filter(s => s.remainingTurns > 0);
-    
-    // 8. 过期状态移除后，再次重新计算属性
-    const finalStats = StatsCalculator.recalculateAllStats(character);
-    character.currentStats = finalStats;
-    
-    // 再次更新maxHp（如果有状态被移除导致HP变化）
-    const finalMaxHp = character.currentStats[StatType.HP];
-    if (finalMaxHp !== character.maxHp) {
-      const hpRatio = character.currentHp / character.maxHp;
-      character.maxHp = finalMaxHp;
-      // 按比例调整当前HP
-      character.currentHp = Math.round(finalMaxHp * hpRatio);
-      // 确保当前HP不超过新的maxHp
-      if (character.currentHp > character.maxHp) {
-        character.currentHp = character.maxHp;
+    if (aliveCount > 0) {
+      // 计算新的回合数
+      // Math.floor(0 / N) + 1 = 1
+      // Math.floor(N / N) + 1 = 2
+      const newRound = Math.floor(this.totalActionCount / aliveCount) + 1;
+      
+      if (newRound > this.battleState.round) {
+        this.battleState.round = newRound;
+        // console.log(`Global Round updated to: ${this.battleState.round}`);
       }
     }
   }
@@ -757,6 +847,9 @@ export class BattleEngine {
       this.battleState.enemies = enemies;
       // 重置资源
       this.battleState.resourceManager.currentResource = 4;
+      // 重置行动计数
+      this.totalActionCount = 0;
+      this.battleState.round = 1;
   }
 
   /**

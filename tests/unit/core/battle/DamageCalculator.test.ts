@@ -30,6 +30,14 @@ describe('DamageCalculator', () => {
         [StatType.IGNORE_DEF_P]: 0,
         [StatType.IGNORE_DEF_FLAT]: 0
       },
+      baseStats: {
+        [StatType.ATK]: 1000,
+        [StatType.DEF]: 500,
+        [StatType.HP]: 10000,
+        [StatType.SPD]: 100,
+        [StatType.CRIT]: 0.1,
+        [StatType.CRIT_DMG]: 0.5
+      },
       actionBarPosition: 0,
       statuses: [],
       isDead: false,
@@ -61,6 +69,12 @@ describe('DamageCalculator', () => {
         [StatType.DMG_TAKEN_BONUS]: 0,
         [StatType.IGNORE_DEF_P]: 0,
         [StatType.IGNORE_DEF_FLAT]: 0,
+      },
+      baseStats: {
+        [StatType.ATK]: 800,
+        [StatType.DEF]: 500,
+        [StatType.HP]: 10000,
+        [StatType.SPD]: 100
       },
       actionBarPosition: 0,
       statuses: [],

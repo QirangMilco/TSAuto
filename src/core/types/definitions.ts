@@ -113,6 +113,13 @@ export enum BuffType {
 	POISONED = "POISONED"        // 中毒
 }
 
+export enum TurnType {
+	NORMAL = "NORMAL",           // 真回合 - 推进资源条
+	NEW_TURN = "NEW_TURN",       // 新回合 - 不推进资源条
+	PSEUDO_TURN = "PSEUDO_TURN", // 伪回合 - 不推进资源条
+	EXTRA = "EXTRA"              // 额外回合 - 插入行动队列
+}
+
 export enum ResourceType {
 	BATTLE_RESOURCE = "BATTLE_RESOURCE"  // 战斗资源类型
 }
@@ -382,6 +389,7 @@ export interface StatusDefinition {
 	id: string; // 唯一标识
 	name: string; // 状态名称
 	type: BuffType; // 状态类型
+	group?: string; // 状态组 (同组互斥，取最大值)
 
 	duration?: number; // 持续回合数，undefined = 永久
 

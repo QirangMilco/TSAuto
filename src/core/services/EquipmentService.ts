@@ -100,7 +100,14 @@ export class EquipmentService {
         const existingTypes = new Set<StatType>();
 
         while (subStats.length < subCount) {
-            const type = this.rng.pick(Array.from(existingTypes).filter(t => !existingTypes.has(t)))!;
+            // Filter available stats from the full pool, not the existing set
+            const availableStats = [
+                StatType.ATK_P, StatType.HP_P, StatType.DEF_P, StatType.SPD, 
+                StatType.CRIT, StatType.CRIT_DMG, StatType.EFFECT_HIT, StatType.EFFECT_RESIST,
+                StatType.ATK, StatType.HP, StatType.DEF
+            ].filter(t => !existingTypes.has(t));
+
+            const type = this.rng.pick(availableStats)!;
             const val = this.generateSubStatValueByType(type);
             subStats.push({ type, value: val });
             existingTypes.add(type);
@@ -153,7 +160,10 @@ export class EquipmentService {
         const config = EQUIPMENT_CONFIG.STATS[type];
         if (config && config.subRange) {
             const [min, max] = config.subRange;
-            return this.rng.floatRange(min, max);
+            // 使用 Irwin-Hall 算法生成倾向于中间值的随机数 (n=3 接近正态分布)
+            const val = this.rollIrwinHall(min, max, 3);
+            // 确保数值在有效范围内
+            return Math.max(min, Math.min(max, val));
         }
 
         // 兜底逻辑 (防止配置缺失)

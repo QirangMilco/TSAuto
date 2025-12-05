@@ -1,6 +1,15 @@
 import type { CharacterInstance, CharacterStatus } from '../types/battle';
-import { BuffType } from '../types/definitions';
+import { BuffType, TurnType, StatType } from '../types/definitions';
 import type { GameDataInterface } from '../types/plugin';
+
+/**
+ * 就绪的回合信息
+ */
+export interface ReadyTurn {
+  characterId: string; // 角色实例ID
+  turnType: TurnType;  // 回合类型
+  character?: CharacterInstance; // 为了兼容旧代码，可选携带实例引用
+}
 
 /**
  * 行动条管理器
@@ -11,6 +20,7 @@ export class TurnManager {
   private static readonly MAX_SPEED = 1000;      // 最大速度
   private globalFastestSpeed: number = 100;     // 全场一速，默认为100
   private gameData?: GameDataInterface;         // 游戏数据访问接口
+  private extraTurnQueue: string[] = [];        // 额外回合队列
   
   /**
    * 构造函数
@@ -25,13 +35,14 @@ export class TurnManager {
   }
 
   /**
-   * 设置游戏数据访问接口
-   * @param gameData 游戏数据访问接口
+   * 插入额外回合
+   * @param characterId 角色实例ID
    */
-  public setGameData(gameData: GameDataInterface): void {
-    this.gameData = gameData;
+  public grantExtraTurn(characterId: string): void {
+    // 将角色加入额外回合队列
+    this.extraTurnQueue.push(characterId);
   }
-  
+
   /**
    * 重新计算全场一速
    * @param characters 所有角色实例
@@ -47,13 +58,32 @@ export class TurnManager {
       this.globalFastestSpeed = 100; // 默认值
     }
   }
-  
+
   /**
    * 计算所有角色的行动条增量并更新位置
    * @param characters 所有角色实例
-   * @returns 达到行动条满值的角色
+   * @returns 准备好行动的角色列表 (包含回合类型信息)
    */
-  public updateActionBar(characters: CharacterInstance[]): CharacterInstance[] {
+  public updateActionBar(characters: CharacterInstance[]): ReadyTurn[] {
+    const readyTurns: ReadyTurn[] = [];
+
+    // 1. 优先处理额外回合
+    if (this.extraTurnQueue.length > 0) {
+      // 一次只处理一个额外回合，或者全部处理？通常一次处理一个比较安全，防止逻辑冲突
+      // 这里我们将队列中第一个取出来
+      const id = this.extraTurnQueue.shift()!;
+      // 找到对应的角色实例 (为了方便上层调用，虽然ReadyTurn只要求ID)
+      const char = characters.find(c => c.instanceId === id);
+      if (char && !char.isDead) {
+          readyTurns.push({ 
+            characterId: id, 
+            turnType: TurnType.EXTRA,
+            character: char 
+          });
+          return readyTurns; // 如果有额外回合，优先返回，不推进正常时间
+      }
+    }
+    
     const readyCharacters: CharacterInstance[] = [];
     
     // 先更新全场一速
@@ -98,7 +128,8 @@ export class TurnManager {
       }
     }
     
-    return readyCharacters.sort((a, b) => {
+    // 排序并转换为 ReadyTurn
+    readyCharacters.sort((a, b) => {
       // 先按行动条位置排序，位置高的先行动
       const positionDiff = b.actionBarPosition - a.actionBarPosition;
       if (positionDiff !== 0) {
@@ -108,53 +139,36 @@ export class TurnManager {
       // 位置相同时，速度慢的己方优先（怪物例外）
       // 这里简化处理，按速度从小到大排序
       return a.currentStats.SPD - b.currentStats.SPD;
+    }).forEach(char => {
+        readyTurns.push({
+            characterId: char.instanceId,
+            turnType: TurnType.NORMAL,
+            character: char
+        });
     });
+
+    return readyTurns;
   }
   
   /**
    * 计算角色的实际速度（考虑增益/减益）
    */
   public calculateEffectiveSpeed(character: CharacterInstance): number {
-    let baseSpeed = character.currentStats.SPD || 0;
+    // 直接使用 StatsCalculator 计算后的最终速度
+    // StatsCalculator 已经处理了所有属性加成（包括来自状态的 SPD_P 和 SPD）
+    // 注意：这里假设 StatsCalculator 已经正确更新到了 character.currentStats[StatType.SPD]
+    // 或者我们可以直接调用 StatsCalculator.getFinalStat?
+    // 为了性能，我们通常相信 currentStats 是最新的（在回合开始/状态变化时更新）
+    // 但如果需要确保实时性且不信任 currentStats，可以调用 StatsCalculator.getFinalStat
+    // 这里我们信任 character.currentStats.SPD 是最终值
     
-    // 获取速度增益/减益
-    const speedModifier = this.getSpeedBuffs(character);
-    
-    // 应用速度加成
-    let effectiveSpeed = baseSpeed * (1 + speedModifier);
+    let effectiveSpeed = character.currentStats[StatType.SPD] || 0;
     
     // 确保在合理范围内
     effectiveSpeed = Math.max(TurnManager.MIN_SPEED, 
                              Math.min(TurnManager.MAX_SPEED, effectiveSpeed));
     
     return effectiveSpeed;
-  }
-  
-  /**
-   * 获取角色的速度加成总和
-   */
-  public getSpeedBuffs(character: CharacterInstance): number {
-    let totalModifier = 0;
-    
-    // 如果没有游戏数据接口，返回0
-    if (!this.gameData) {
-      return totalModifier;
-    }
-    
-    for (const status of character.statuses) {
-      // 通过statusId从游戏数据中获取状态定义
-      const statusDefinition = this.gameData!.getStatus(status.statusId);
-      
-      // 检查状态定义是否存在并且类型为速度提升
-      if (statusDefinition && statusDefinition.type === BuffType.SPD_UP) {
-        // 从状态定义的statModifiers中获取速度加成
-        // 注意：这里假设速度加成存储在SPD_P属性中，需要根据实际设计调整
-        const speedBonus = statusDefinition.statModifiers?.SPD_P || 0;
-        totalModifier += speedBonus / 100; // 转换为小数
-      }
-    }
-    
-    return totalModifier;
   }
   
   /**

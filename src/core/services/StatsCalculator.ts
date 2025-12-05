@@ -32,9 +32,8 @@ export class StatsCalculator {
      */
     public static getFinalStat(character: CharacterInstance, statType: StatType): number {
         // 1. 获取基础属性 (面板白值)
-        // 注意：这里需要从角色定义中获取基础属性
-        // 由于角色实例中没有直接存储定义，我们假设 currentStats 中已有基础属性
-        let baseValue = character.currentStats[statType] || 0;
+        // 使用 baseStats 作为基准，避免重复叠加 Buff
+        let baseValue = character.baseStats[statType] || 0;
         
         // 2. 计算装备/御魂加成
         let equipmentBonus = 0;
@@ -69,49 +68,89 @@ export class StatsCalculator {
     
     /**
      * 计算角色所有状态效果提供的属性加成
+     * 支持同组互斥（取最大值）和不同组叠加
      * @param character 角色实例
      * @param statType 属性类型
      * @returns 状态效果提供的属性加成值
      */
     private static calculateStatusEffectsBonus(character: CharacterInstance, statType: StatType): number {
-        let bonus = 0;
+        let totalBonus = 0;
+        
+        // 分组状态的最优值映射: group -> maxBonus
+        const groupMaxBonus: Map<string, number> = new Map();
         
         // 遍历角色所有状态
         character.statuses.forEach(status => {
-            // 从gameData中获取完整的状态定义
+            // 1. 获取状态定义
             const statusDefinition = this.gameData?.getStatus(status.statusId);
             
-            // 如果获取到状态定义，使用其中的statModifiers
-            if (statusDefinition && statusDefinition.statModifiers) {
-                const statValue = statusDefinition.statModifiers[statType];
-                if (statValue !== undefined) {
-                    bonus += statValue;
+            // 2. 确定加成值和分组
+            let bonus = 0;
+            let group = status.group; // 优先使用实例上的 group (动态赋予)
+
+            if (statusDefinition) {
+                // 如果定义中有 group 且实例没覆盖，则使用定义的 group
+                if (!group && statusDefinition.group) {
+                    group = statusDefinition.group;
                 }
-            } 
-            // 兼容旧逻辑：如果没有获取到状态定义，使用状态类型推断
-            else if (status.type) {
+                
+                // 获取加成值
+                if (statusDefinition.statModifiers && statusDefinition.statModifiers[statType] !== undefined) {
+                    bonus = statusDefinition.statModifiers[statType]!;
+                }
+            } else if (status.type) {
+                // 兼容旧逻辑：如果没有获取到状态定义，使用状态类型推断
+                // TODO: 逐步废弃这种硬编码逻辑，全面转向 StatusDefinition
                 switch (status.type) {
                     case BuffType.ATK_UP:
-                        if (statType === StatType.ATK_P) {
-                            bonus += 30; // 假设攻击提升状态提供30%攻击加成
-                        }
+                        if (statType === StatType.ATK_P) bonus = 30;
                         break;
                     case BuffType.DEF_UP:
-                        if (statType === StatType.DEF_P) {
-                            bonus += 30; // 假设防御提升状态提供30%防御加成
-                        }
+                        if (statType === StatType.DEF_P) bonus = 30;
                         break;
                     case BuffType.SPD_UP:
+                        // 注意：TurnManager 中的 getSpeedBuffs 已被废弃，统一由此处处理
+                        // SPD_UP 通常是百分比还是固定值？这里假设是百分比 SPD_P 或固定值 SPD
+                        // 如果是 SPD_P，则 bonus = value
                         if (statType === StatType.SPD_P) {
-                            bonus += status.effect?.value || 0; // 使用状态的effect.value作为速度加成
+                             bonus = status.effect?.value || 0;
                         }
                         break;
-                    // 其他状态类型可以在此处扩展
+                }
+            }
+
+            // 3. 应用堆叠规则
+            if (bonus !== 0) {
+                if (group) {
+                    // 同组互斥：取绝对值最大的效果（正负方向分别取最大？通常 RPG 规则是覆盖）
+                    // 简单规则：只取数值最大的（Buff 覆盖 Debuff？或者 Buff 和 Debuff 分离？）
+                    // 阴阳师规则：同名 Buff 覆盖。同类 Buff (如加速) 可能有多种来源。
+                    // 这里实现：同 Group 取数值最大（Max）。
+                    // 如果是负值（减益），也是数值比较。
+                    // 例如：加速 20 (Group A) vs 加速 10 (Group A) -> 取 20
+                    // 加速 20 (Group A) vs 减速 -30 (Group A) -> 取 20? 还是 -30?
+                    // 通常互斥意味着它们不能共存，或者系统只计算一个。
+                    // 假设：同 Group 取 max(bonus)。这适用于 "同类增益取最高"。
+                    // 如果 Group 包含增益和减益（如 "SpeedModifier"），则需要更复杂的逻辑。
+                    // 建议：Group 仅用于同向 Buff。
+                    
+                    const currentMax = groupMaxBonus.get(group);
+                    if (currentMax === undefined || bonus > currentMax) {
+                        groupMaxBonus.set(group, bonus);
+                    }
+                } else {
+                    // 无分组：直接叠加
+                    totalBonus += bonus;
                 }
             }
         });
         
-        return bonus;
+        // 4. 累加分组最优值
+        for (const maxBonus of groupMaxBonus.values()) {
+            totalBonus += maxBonus;
+        }
+        
+        return totalBonus;
     }
     
     /**

@@ -77,7 +77,7 @@ export class DamageCalculator {
     finalDamage = this.clampDamage(finalDamage, defender.maxHp);
     
     return {
-      damage: Math.round(finalDamage),
+      damage: Math.floor(finalDamage),
       isCritical,
       rawDamage,
       criticalDamage,
@@ -193,7 +193,7 @@ export class DamageCalculator {
     finalHeal = Math.min(finalHeal, maxPossibleHeal);
     
     return {
-      healAmount: Math.round(finalHeal),
+      healAmount: Math.floor(finalHeal),
       isCritical,
       rawHeal,
       criticalHeal

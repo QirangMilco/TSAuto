@@ -171,16 +171,61 @@ export class PluginLoader {
     }
   }
   
+  // 动态模块注册表缓存
+  private dynamicModuleRegistry: Record<string, () => Promise<any>> | null = null;
+
+  /**
+   * 获取动态模块注册表 (懒加载)
+   * 使用 Vite 的 import.meta.glob 建立文件路径到加载函数的映射
+   */
+  private getDynamicModules(): Record<string, () => Promise<any>> {
+    if (!this.dynamicModuleRegistry) {
+      try {
+        // 使用非 eager 模式，仅获取加载函数，不立即加载模块
+        // @ts-ignore - import.meta.glob is a Vite-specific feature
+        this.dynamicModuleRegistry = import.meta.glob('/plugins/**/*.ts');
+      } catch (e) {
+        console.warn('import.meta.glob not supported in this environment');
+        this.dynamicModuleRegistry = {};
+      }
+    }
+    return this.dynamicModuleRegistry!;
+  }
+
   /**
    * 动态加载单个插件
    */
   private async loadDynamicPlugin(path: string, type: PluginType): Promise<PluginLoadResult | null> {
     try {
-      // 添加 @vite-ignore 注释并使用正确的相对路径
-      const module = await import(/* @vite-ignore */ `../../../../plugins/${path}`);
+      const modules = this.getDynamicModules();
+      // 构建匹配键值：import.meta.glob 的键通常以 /plugins 开头
+      // 尝试多种可能的路径格式匹配
+      const possibleKeys = [
+        `/plugins/${path}`,
+        path.startsWith('/') ? `/plugins${path}` : `/plugins/${path}`,
+        path // 直接尝试传入的路径
+      ];
+
+      let loader: (() => Promise<any>) | undefined;
+      let matchedKey: string | undefined;
+
+      for (const key of possibleKeys) {
+        if (modules[key]) {
+          loader = modules[key];
+          matchedKey = key;
+          break;
+        }
+      }
+
+      if (!loader) {
+        console.warn(`Dynamic plugin not found in registry: ${path}`);
+        return null;
+      }
+
+      const module = await loader();
       return await this.processPluginModule(path, module, type);
     } catch (importError) {
-      console.error(`Failed to import dynamic plugin: /plugins/${path}`, importError);
+      console.error(`Failed to import dynamic plugin: ${path}`, importError);
       return null;
     }
   }

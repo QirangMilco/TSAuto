@@ -14,6 +14,9 @@ export interface CharacterInstance {
   
   // 当前面板属性 (计算后)
   currentStats: Record<StatType, number>;
+
+  // 基础属性 (未加成，用于计算基准)
+  baseStats: Record<StatType, number>;
   
   // 行动条状态
   actionBarPosition: number; // 当前位置 (0-全场一速)
@@ -33,7 +36,10 @@ export interface CharacterInstance {
   
   // 技能列表
   skills: string[]; // 技能ID列表
-  
+
+  // AI配置
+  gambitId?: string;
+
   // 方法
   takeDamage(damage: number): void;
   addStatus(statusId: string, duration?: number): void;
@@ -47,8 +53,9 @@ export interface CharacterStatus {
   statusId: string; // 状态定义ID
   remainingTurns: number; // 剩余回合数
   stackCount: number; // 叠加层数
-  type?: BuffType; // 状态类型，用于TurnManager中的getSpeedBuffs方法
-  effect?: { value: number }; // 效果值，用于TurnManager中的getSpeedBuffs方法
+  type?: BuffType; // 状态类型
+  effect?: { value: number }; // 效果值
+  group?: string; // 状态组 (用于堆叠规则：同组同属性只取最大值)
 }
 
 /**
