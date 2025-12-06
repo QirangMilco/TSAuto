@@ -14,8 +14,11 @@ export default defineConfig({
     environment: 'happy-dom'
   },
   // 配置插件目录的处理
+  assetsInclude: ['**/*.wasm'],
   optimizeDeps: {
-    include: ['/plugins/**/*.ts']
+    include: ['/plugins/**/*.ts'],
+    // swc-wasm needs to be excluded from pre-bundling so its wasm asset can load correctly
+    exclude: ['@swc/wasm-web']
   },
   build: {
     // 确保插件文件被正确打包

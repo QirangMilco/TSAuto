@@ -12,6 +12,7 @@
     "generate-plugins": "node scripts/generate-static-plugins.js"
   },
   "dependencies": {
+    "@swc/wasm-web": "^1.15.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "zustand": "^4.4.6"

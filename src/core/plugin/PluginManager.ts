@@ -3,6 +3,7 @@ import type { CharacterDefinition, SkillDefinition, EquipmentDefinition, StatusD
 import { PluginType } from '../types/plugin';
 import { PluginLoader } from './PluginLoader';
 import { PluginValidator } from './PluginValidator';
+import { RuntimePluginLoader } from './runtime/RuntimePluginLoader';
 
 /**
  * 插件管理器配置选项
@@ -34,6 +35,7 @@ export interface PluginManagerOptions {
 export class PluginManager implements GameDataInterface {
   private pluginLoader: PluginLoader;
   private pluginValidator: PluginValidator;
+  private runtimePluginLoader?: RuntimePluginLoader;
   private pluginRegistry: Map<string, any> = new Map(); // 插件ID -> 插件内容
   private metadataRegistry: Map<string, PluginMetadata> = new Map(); // 插件ID -> 元数据
   
@@ -222,6 +224,35 @@ export class PluginManager implements GameDataInterface {
       this.metadataRegistry.set(id, metadata);
       this.registerPluginByType(id, type, content);
       
+      return { success: true, id };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  /**
+   * 运行时加载并注册 TS 源码插件
+   */
+  public async loadRuntimePlugin(
+    source: string,
+    filename: string
+  ): Promise<{ success: boolean; id?: string; error?: string }> {
+    try {
+      if (!this.runtimePluginLoader) {
+        this.runtimePluginLoader = new RuntimePluginLoader();
+      }
+
+      const plugin = await this.runtimePluginLoader.loadPluginFromSource(source, filename);
+      const { id, type, content, metadata } = plugin;
+
+      if (!this.pluginValidator.validatePlugin(id, type, content)) {
+        return { success: false, error: 'Invalid plugin format' };
+      }
+
+      this.pluginRegistry.set(id, content);
+      this.metadataRegistry.set(id, metadata);
+      this.registerPluginByType(id, type, content);
+
       return { success: true, id };
     } catch (error) {
       return { success: false, error: (error as Error).message };

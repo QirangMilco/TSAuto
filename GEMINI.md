@@ -93,28 +93,28 @@
 
 ## Building and Running
 
-The project uses `pnpm` (implied by `pnpm-workspace.yaml`) or `npm` standard scripts.
+The project uses `pnpm` (implied by `pnpm-workspace.yaml`)  scripts.
 
 *   **Install Dependencies:**
     ```bash
-    npm install
+    pnpm install
     ```
 *   **Start Development Server:**
     ```bash
-    npm run dev
+    pnpm run dev
     ```
 *   **Build for Production:**
     ```bash
-    npm run build
+    pnpm run build
     ```
     *Note: This script automatically runs `scripts/generate-static-plugins.js` to prepare game data.*
 *   **Run Tests:**
     ```bash
-    npm run test
+    pnpm run test
     ```
 *   **Generate Plugins:**
     ```bash
-    npm run generate-plugins
+    pnpm run generate-plugins
     ```
 
 ## Development Conventions
